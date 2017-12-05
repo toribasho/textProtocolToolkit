@@ -27,4 +27,4 @@ HEADERS += \
     protocolstructbuilder.h
 
 DISTFILES += \
-    meteoDecodeRules.xml
+    examples/meteoDecodeRules.xml
