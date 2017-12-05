@@ -25,3 +25,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 HEADERS += \
     protocolstructbuilder.h
+
+DISTFILES += \
+    meteoDecodeRules.xml

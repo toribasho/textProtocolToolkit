@@ -15,6 +15,13 @@ struct baseFieldObject{
     _fieldType getObjectType() = 0;
 };
 
+struct fieldDbData{
+    QString _db_fieldName;
+    QString _value;
+    bool multiValue;
+    QString concat;
+};
+
 struct fieldObject: public baseFieldObject{
 
     _fieldType getObjectType(){return _fieldType::SIMPLE;}
@@ -35,7 +42,10 @@ struct structObject: public baseFieldObject{
 
     QString _exStructName;                      // name as Type
     QString _structAsFieldName;                 // variableName
+
     QList< baseFieldObject *> _structFields;
+
+    QHash<QString, QList<fieldDbData> > dbData;
 };
 
 struct containerObject: public baseFieldObject{
@@ -53,13 +63,8 @@ struct structBuilderObject{
     QString _structName;
     QString _structParent;
     QList< baseFieldObject *> _structFields;
-};
 
-struct fieldDbData{
-    QString _db_fieldName;
-    QString _value;
-    bool multiValue;
-    QString concat;
+    QHash<QString, QList<fieldDbData> > dbData;
 };
 
 class ProtocolStructBuilder

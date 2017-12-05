@@ -54,19 +54,23 @@ void ProtocolStructBuilder::loadXmlData()
                     ignoreReadNext = true;
                     continue;
                 }
+                QString curValueName;
 
                 QHash<QString , containerObject *>  containtersInState;
                 QHash<QString , structObject *>     structsInState;
 
                 while (token != QXmlStreamReader::EndElement && xml.name() == "state"){
-                    if (xml.name().toString() == "value"){;
+                    if (xml.name().toString() == "value"){
+                        QStringList valuesInSection;
+                        if (xml.attributes().hasAttribute("field"))
+                            curValueName = xml.attributes().value("field").toString();
 
                         while (token != QXmlStreamReader::EndElement && xml.name() == "value"){
 
                             if (xml.name() == "data"){
                                 fieldObject * fieldObj = new fieldObject;
                                 fieldObj->_hashKey = curStateName;
-                                fieldObj->_resultHashListKey = attributes.value("field").toString();
+                                fieldObj->_resultHashListKey = curValueName;
                                 if (attributes.hasAttribute("reqired"))
                                     fieldObj->required = attributes.value("reqired").toString() == "true";
                                 else
@@ -78,6 +82,8 @@ void ProtocolStructBuilder::loadXmlData()
                                 if (xml.attributes().hasAttribute("scale"))
                                     fieldObj->_fieldScale = xml.attributes().value("scale").toString();
                                 builder->_structFields.append(fieldObj);
+
+                                valuesInSection << xml.attributes().value("structName").toString();
                             }
                             else if (xml.name() == "listdata"){
                                 QString curContainterName;
@@ -112,6 +118,8 @@ void ProtocolStructBuilder::loadXmlData()
                                             if (xml.attributes().hasAttribute("scale"))
                                                 fieldObj->_fieldScale = xml.attributes().value("scale").toString();
                                             containtersInState[curContainterName]->_inlineData.append(fieldObj);
+
+                                            valuesInSection << xml.attributes().value("structName").toString();
                                         }
                                         else if (xml.name() == "structdata"){
                                             QString curStructName = xml.attributes().value("structType").toString();
@@ -140,6 +148,8 @@ void ProtocolStructBuilder::loadXmlData()
                                                     if (xml.attributes().hasAttribute("scale"))
                                                         fieldObj->_fieldScale = xml.attributes().value("scale").toString();
                                                     structsInState[curStructName]->_structFields.append(fieldObj);
+
+                                                    valuesInSection << xml.attributes().value("structName").toString();
                                                 }
                                                 token = xml.readNext();
                                             }
@@ -176,36 +186,65 @@ void ProtocolStructBuilder::loadXmlData()
                                         if (xml.attributes().hasAttribute("scale"))
                                             fieldObj->_fieldScale = xml.attributes().value("scale").toString();
                                         structsInState[curStructName]->_structFields.append(fieldObj);
+
+                                        valuesInSection << xml.attributes().value("structName").toString();
                                     }
                                     token = xml.readNext();
                                 }
 
                             }
-
-                            if (xml.name() == "db"){
-//                                _db_data[dbTableName]
+                            else if (xml.name() == "db"){
                                 QXmlStreamAttributes db_attr = xml.attributes();
                                 QString curTableName = dbTableName ;
                                 if (db_attr.hasAttribute("table"))
                                     curTableName = db_attr.value("table").toString();
                                 fieldDbData fdb;
                                 fdb._db_fieldName = db_attr.value("dbfield").toString();
+                                if (db_attr.hasAttribute("value"))
+                                    fdb._value = db_attr.value("value").toString();
                                 if (db_attr.hasAttribute("multiValue"))
                                     fdb.multiValue = db_attr.value("multiValue").toString() == "true";
                                 if (db_attr.hasAttribute("concat"))
                                     fdb.concat  = db_attr.value("concat").toString();
+
+                                if (valuesInSection.count() == 1){
+
+                                    if (!structsInState.isEmpty() && valuesInSection.first().contains(":")){
+                                        QStringList sl = valuesInSection.first().split(":");
+                                        if (fdb._value.isEmpty())
+                                            fdb._value = sl.last();
+                                        structsInState[sl.first()]->dbData[curTableName] = fdb;
+                                    }
+                                    else {
+                                        if (fdb._value.isEmpty())
+                                            fdb._value = valuesInSection.first();
+                                        builder->dbData[curTableName] = fdb;
+                                    }
+                                }
+                                else if (!fdb._value.isEmpty()){
+                                    foreach (const QString &value, valuesInSection) {
+                                        if (!structsInState.isEmpty() && value.contains(":")){
+                                            QStringList sl = value.split(":");
+                                            structsInState[sl.first()]->dbData[curTableName] = fdb;
+                                        }
+                                        else {
+                                            builder->dbData[curTableName] = fdb;
+                                        }
+                                    }
+                                }
+                                else
+                                    throw std::invalid_argument("More than one data in value section without db value specification: " +
+                                                                dbTableName.toStdString() + " " + valuesInSection.join(" ").toStdString());
                             }
                             token = xml.readNext();
                         }
                     }
-
-
                 }
-
-
+// end state section
             }
-
+// end start element secion
         }
+// end parese loop
     }
 }
 
