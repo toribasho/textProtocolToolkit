@@ -683,28 +683,9 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
     return res;
 }
 
-bool ProtocolStructBuilder::createStructs(const QString &ruleFile,const QString &outputFileName)
+bool ProtocolStructBuilder::createStructs(const QString &outputFileName)
 {
     bool res = true;
-
-    QFile f(ruleFile);
-    if (f.exists(ruleFile))
-        f.open(QIODevice::ReadOnly);
-    else {
-        qDebug() << "incorrect path to meteoDecodeRules.xml";
-        return res;
-    }
-
-    QXmlStreamReader xml(&f);
-
-    enum _protocolState { CREATE, FILL, FINISH }    protocolState;
-    enum _fieldType { SIMPLE, STRUCT, LIST }        fieldType;
-    enum _fieldState { CREATE, ADD, SAVE }          fieldState;
-    QString _prevSectionName;   // for switch States
-
-    QString _className;         // Create functionHeaders
-    QString _structName;        // Fill structFields
-    QString _listName;          // Fill list
 
     QFile *fHeader = new QFile(outputFileName+".h");
     QFile *fSource = new QFile(outputFileName+".cpp");
@@ -724,7 +705,30 @@ bool ProtocolStructBuilder::createStructs(const QString &ruleFile,const QString 
 
     sStream << "#include \"" << fHeader->fileName() << "\"" << "\n" << "\n";
 
-    QHash<QString, QString> functionData; //    <funcName, funcText>
+
+    for (auto &pStruct: _protocolData){
+        hStream << "struct " << pStruct._structName << pStruct._structParent.isEmpty() ? "" : QString(": " + pStruct._structParent) << " {" << "\n" << "\n";
+        for (auto * sFieled : pStruct._structFields){
+            switch (sFieled->getObjectType()) {
+            case _objectType::SIMPLE:
+
+                break;
+            case _objectType::STRUCT:
+
+                break;
+            case _objectType::CONTAINER:
+
+                break;
+            }
+        }
+
+        hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
+        hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
+        hStream << "\t" << "bool isValid() const;" << "\n";
+    }
+
+
+
 
     while (!xml.atEnd() && !xml.hasError()){
         QXmlStreamReader::TokenType token = xml.readNext();
