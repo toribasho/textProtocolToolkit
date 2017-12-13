@@ -248,6 +248,13 @@ void ProtocolStructBuilder::loadXmlData()
     }
 }
 
+QString ProtocolStructBuilder::makeStructDeclaration(structObject * sObj)
+{
+    QString resultSturctDeclaration;
+    Q_UNUSED(sObj)
+    return resultSturctDeclaration;
+}
+
 bool ProtocolStructBuilder::validate(const QString &ruleFile)
 {
     bool res = true;
@@ -705,19 +712,40 @@ bool ProtocolStructBuilder::createStructs(const QString &outputFileName)
 
     sStream << "#include \"" << fHeader->fileName() << "\"" << "\n" << "\n";
 
+    int headPosition = hStream.pos();
+    QString externalStructDeclaration = "";
 
     for (auto &pStruct: _protocolData){
         hStream << "struct " << pStruct._structName << pStruct._structParent.isEmpty() ? "" : QString(": " + pStruct._structParent) << " {" << "\n" << "\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:
-
+                fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
+                if (fObj){
+                    hStream << "\t" << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
+                }
                 break;
             case _objectType::STRUCT:
-
+                structObject * sObj = dynamic_cast<structObject *>(sFieled);
+                if (sObj){
+                    hStream << "\t" << sObj->_exStructName << " " << sObj->_structAsFieldName << ";" << "\n";
+                    externalStructDeclaration.append(makeStructDeclaration(sObj));
+                }
                 break;
             case _objectType::CONTAINER:
-
+                containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
+                if (cObj){
+                    hStream << "\t";
+                    switch (cObj->_containerType) {
+                    case typeList:
+                        hStream << "QList<" << cObj->_exContainerName << "> " << cObj->_containerAsFieldName;
+                        break;
+                    }
+                    hStream << ";" << "\n";
+                    if (cObj->_internalField->getObjectType() == _objectType::STRUCT){
+                        externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<containerObject *>(cObj->_internalField)));
+                    }
+                }
                 break;
             }
         }
@@ -725,39 +753,13 @@ bool ProtocolStructBuilder::createStructs(const QString &outputFileName)
         hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
         hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
         hStream << "\t" << "bool isValid() const;" << "\n";
-    }
-
-
-
-
-    while (!xml.atEnd() && !xml.hasError()){
-        QXmlStreamReader::TokenType token = xml.readNext();
-        if (token == QXmlStreamReader::StartDocument)
-            continue;
-        if (token == QXmlStreamReader::StartElement)
-        {
-            if (xml.name().toString() == "meteo"){
-                QXmlStreamAttributes attributes = xml.attributes();
-                _className = attributes.value("struct").toString();
-                QString parentName = " : ";
-                if (attributes.hasAttribute("parent"))
-                    parentName.append(attributes.value("parent").toString());
-                else
-                    parentName.clear();
-
-                hStream << "struct " << _className << parentName.isEmpty() ? "" : parentName << " {" << "\n";
-                hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
-                hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
-                hStream << "\t" << "bool isValid() const;" << "\n";
-
-                functionData["loadFromVariantHash"] = "bool " + _className + "::loadFromVariantHash(QVariantHash &hash)" + "\n" + "{" + "\n";
-                functionData["toVariantHash"] = "QVariantHash " + _className + "::toVariantHash() const" + "\n" + "{" + "\n";
-                functionData["isValid"] = "bool " + _className + "::isValid() const" + "\n" + "{" + "\n";
-            }
-        }
+        hStream << "}" << "\n" << "\n";
     }
 
     hStream << "#endif" << "\n";
+
+    hStream.seek(headPosition);
+    hStream << externalStructDeclaration;
 
     fSource->close();
     fHeader->close();
