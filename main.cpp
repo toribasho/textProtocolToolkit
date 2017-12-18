@@ -5,8 +5,10 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    if (ProtocolStructBuilder::validate("meteoDecodeRules.xml")){
+    if (ProtocolStructBuilder::validate("example/demo.xml")){
         qDebug() << "Validation OK";
+        ProtocolStructBuilder psb("example/demo.xml");
+        psb.createStructs("demo");
     }
     else {
         qDebug() << "Error in syntax";
