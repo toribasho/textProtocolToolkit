@@ -7,12 +7,12 @@
 #include <QtXml/QtXml>
 #include <QXmlStreamReader>
 
-enum containerType { typeStruct = 0, typeList = 1} ;
-enum _objectType { SIMPLE, STRUCT, CONTAINER};
+enum containerType {typeList = 0};
+enum _objectType { SIMPLE = 0, STRUCT = 1, CONTAINER = 2};
 //enum _fieldType { typeBool, typeInt, typeString, typeDate, typeTime, typeDateTime};
 
 struct baseFieldObject{
-    _objectType getObjectType() = 0;
+    virtual _objectType getObjectType() = 0;
 };
 
 struct fieldDbData{
@@ -24,7 +24,7 @@ struct fieldDbData{
 
 struct fieldObject: public baseFieldObject{
 
-    _objectType getObjectType(){return _objectType::SIMPLE;}
+    virtual _objectType getObjectType(){return _objectType::SIMPLE;}
 
     QString _fieldType;
     QString _fieldName;
@@ -38,7 +38,7 @@ struct fieldObject: public baseFieldObject{
 
 struct structObject: public baseFieldObject{
 
-    _objectType getObjectType(){return _objectType::STRUCT;}
+    virtual _objectType getObjectType(){return _objectType::STRUCT;}
 
     QString _exStructName;                      // name as Type
     QString _structAsFieldName;                 // variableName
@@ -50,7 +50,7 @@ struct structObject: public baseFieldObject{
 
 struct containerObject: public baseFieldObject{
 
-    _objectType getObjectType(){return _objectType::CONTAINER;}
+    virtual _objectType getObjectType(){return _objectType::CONTAINER;}
 
     containerType _containerType;               // enum?
     QString _exContainerName;                   // name as Type
@@ -77,7 +77,10 @@ class ProtocolStructBuilder
     void loadXmlData();
 //    fieldObject * makeFieldObject(const QXmlStreamReader &xml);
     QString makeStructDeclaration(structObject *);
+    void createHeaderFile(const QString &fileName);
+    void createSourceFile(const QString &fileName);
 public:
+    ProtocolStructBuilder(const QString &ruleFilePath);
     static bool validate(const QString &ruleFile);
     bool createStructs(const QString &outputFileName);
     bool createPersister(const QString &ruleFile);

@@ -36,20 +36,22 @@ void ProtocolStructBuilder::loadXmlData()
                 meteoProtocollClass._structParent = attributes.value("parent").toString();
                 dbTableName = attributes.value("name").toString();
 
-                mainDbData mainDb;
-                mainDb._db_table = attributes.value("name").toString();
+//                mainDbData mainDb;
+//                mainDb._db_table = attributes.value("name").toString();
 
                 _protocolData.append(meteoProtocollClass);
-                _db_data.append(mainDb);
+//                _db_data.append(mainDb);
 
                 builder = &_protocolData[_protocolData.size()-1];
-                mDb = &_db_data[_db_data.size()-1];
+//                mDb = &_db_data[_db_data.size()-1];
             }
             if (xml.name().toString() == "state"){
                 QXmlStreamAttributes attributes = xml.attributes();
                 QString curStateName = attributes.value("field").toString();
 
                 token = xml.readNext();
+                while (xml.name().toString().isEmpty())
+                    token = xml.readNext();
                 if (xml.name().toString() == "state"){
                     ignoreReadNext = true;
                     continue;
@@ -59,7 +61,7 @@ void ProtocolStructBuilder::loadXmlData()
                 QHash<QString , containerObject *>  containtersInState;
                 QHash<QString , structObject *>     structsInState;
 
-                while (token != QXmlStreamReader::EndElement && xml.name() == "state"){
+                while (token != QXmlStreamReader::EndElement && xml.name() != "state"){
                     if (xml.name().toString() == "value"){
                         QStringList valuesInSection;
                         if (xml.attributes().hasAttribute("field"))
@@ -165,7 +167,7 @@ void ProtocolStructBuilder::loadXmlData()
                                     structObject * sObj = new structObject;
                                     sObj->_exStructName = curStructName;
                                     sObj->_structAsFieldName = xml.attributes().value("structName").toString();
-                                    builder->_structFields.append(cObj);
+                                    builder->_structFields.append(sObj);
                                     structsInState[sObj->_exStructName] = sObj;
                                 }
 
@@ -213,22 +215,22 @@ void ProtocolStructBuilder::loadXmlData()
                                         QStringList sl = valuesInSection.first().split(":");
                                         if (fdb._value.isEmpty())
                                             fdb._value = sl.last();
-                                        structsInState[sl.first()]->dbData[curTableName] = fdb;
+                                        structsInState[sl.first()]->dbData[curTableName].append(fdb);
                                     }
                                     else {
                                         if (fdb._value.isEmpty())
                                             fdb._value = valuesInSection.first();
-                                        builder->dbData[curTableName] = fdb;
+                                        builder->dbData[curTableName].append(fdb);
                                     }
                                 }
                                 else if (!fdb._value.isEmpty()){
                                     foreach (const QString &value, valuesInSection) {
                                         if (!structsInState.isEmpty() && value.contains(":")){
                                             QStringList sl = value.split(":");
-                                            structsInState[sl.first()]->dbData[curTableName] = fdb;
+                                            structsInState[sl.first()]->dbData[curTableName].append(fdb);
                                         }
                                         else {
-                                            builder->dbData[curTableName] = fdb;
+                                            builder->dbData[curTableName].append(fdb);
                                         }
                                     }
                                 }
@@ -255,6 +257,163 @@ QString ProtocolStructBuilder::makeStructDeclaration(structObject * sObj)
     return resultSturctDeclaration;
 }
 
+void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
+{
+    QFile *fHeader = new QFile(fileName);
+    fHeader->open(QIODevice::WriteOnly);
+
+    QTextStream hStream (fHeader);
+    QString outputFileName = fileName.mid(0,fileName.length()-4);
+
+    hStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    hStream << "#ifndef " << outputFileName.toUpper() << "_H" << "\n";
+    hStream << "#define " << outputFileName.toUpper() << "_H" << "\n" << "\n";
+    hStream << "#include \"meteoData_protorype.h\"" << "\n" << "\n";
+
+    int headPosition = hStream.pos();
+    QString externalStructDeclaration = "";
+
+    for (auto &pStruct: _protocolData){
+        hStream << "struct " << pStruct._structName;
+        hStream << QString(pStruct._structParent.isEmpty() ? "" : QString(": %1").arg(pStruct._structParent));
+        hStream << " {\n\n";
+        for (auto * sFieled : pStruct._structFields){
+            switch (sFieled->getObjectType()) {
+            case _objectType::SIMPLE:{
+                fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
+                if (fObj){
+                    hStream << "\t" << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
+                }
+                break;
+            }
+            case _objectType::STRUCT:{
+                structObject * sObj = dynamic_cast<structObject *>(sFieled);
+                if (sObj){
+                    hStream << "\t" << sObj->_exStructName << " " << sObj->_structAsFieldName << ";" << "\n";
+                    externalStructDeclaration.append(makeStructDeclaration(sObj));
+                }
+                break;
+            }
+            case _objectType::CONTAINER:{
+                containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
+                if (cObj){
+                    hStream << "\t";
+                    switch (cObj->_containerType) {
+                    case containerType::typeList:{
+                        hStream << "QList<" << cObj->_exContainerName << "> " << cObj->_containerAsFieldName;
+                        break;
+                    }
+                    }
+                    hStream << ";" << "\n";
+                    if (cObj->_internalField->getObjectType() == _objectType::STRUCT){
+                        externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<structObject *>(cObj->_internalField)));
+                    }
+                }
+                break;
+            }
+            }
+        }
+
+        hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
+        hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
+        hStream << "\t" << "bool isValid() const;" << "\n";
+        hStream << "}" << "\n" << "\n";
+    }
+
+    hStream << "#endif" << "\n";
+
+    hStream.seek(headPosition);
+    hStream << externalStructDeclaration;
+
+    fHeader->close();
+}
+
+void ProtocolStructBuilder::createSourceFile(const QString &fileName)
+{
+    QFile *fSource = new QFile(fileName);
+    fSource->open(QIODevice::WriteOnly);
+
+    QTextStream sStream (fSource);
+    sStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    QString headerFile = fileName.mid(0,fileName.length() - 4);
+
+    sStream << "#include \"" << headerFile << ".h" << "\"" << "\n" << "\n";
+
+    QString externalStructDeclaration = "";
+
+    for (auto &pStruct: _protocolData){
+        sStream << "void " << pStruct._structName << "::loadFromVariantHash(const QVariantHash &hash){\n";
+        for (auto * sFieled : pStruct._structFields){
+            switch (sFieled->getObjectType()) {
+            case _objectType::SIMPLE:{
+                fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
+                if (fObj){
+                    sStream << "\t" << "if (hash.keys().contains(\"" << fObj->_resultHashListKey << "\")){\n";
+                    sStream << "\t\t" << "QVariantHash valuesHash = hash.value(\"" << fObj->_resultHashListKey << "\").toHash();\n";
+                    sStream << "\t\t" << "if (valuesHash.keys().contains(\"" << fObj->_hashKey << "\")){\n";
+                    sStream << "\t\t\t" << fObj->_fieldName << " = ";
+                    if (fObj->_fieldType == "int"){
+                        sStream << "valueHash.value(\"" << fObj->_hashKey << "\").toInt() * " << fObj->_fieldScale;
+                    }
+                    else if (fObj->_fieldType == "string"){
+                        sStream << "valueHash.value(\"" << fObj->_hashKey << "\").toString()";
+                    }
+                    else if (fObj->_fieldType == "datetime"){
+                        sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                    }
+                    else if (fObj->_fieldType == "date"){
+                        sStream << "QDate::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                    }
+                    else if (fObj->_fieldType == "time"){
+                        sStream << "QTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                    }
+                    else if (fObj->_fieldType == "double"){
+                        sStream << "valueHash.value(\"" << fObj->_hashKey << "\").toDouble() * " << fObj->_fieldScale;
+                    }
+                    else if (fObj->_fieldType == "bool"){
+                        sStream << "valuesHash.keys().contains(\"" << fObj->_hashKey << "\")";
+                    }
+                    else{
+                        sStream << "NULL";
+                    }
+                    sStream << ";\n";
+                    sStream << "\t\t}\n";
+                    sStream << "\t}\n";
+                }
+                break;
+            }
+            case _objectType::STRUCT:{
+                structObject * sObj = dynamic_cast<structObject *>(sFieled);
+                if (sObj){
+                    continue;
+//                    TODO
+                }
+                break;
+            }
+            case _objectType::CONTAINER:{
+                containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
+                if (cObj){
+                    continue;
+//                    TODO
+                }
+                break;
+            }
+            }
+        }
+        sStream << "}" << "\n" << "\n";
+    }
+
+    fSource->close();
+}
+
+ProtocolStructBuilder::ProtocolStructBuilder(const QString &ruleFilePath):
+    _ruleFile(ruleFilePath)
+{
+    loadXmlData();
+}
+
 bool ProtocolStructBuilder::validate(const QString &ruleFile)
 {
     bool res = true;
@@ -264,7 +423,7 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
         f.open(QIODevice::ReadOnly);
     else {
         qDebug() << "incorrect path to meteoDecodeRules.xml";
-        return res;
+        return false;
     }
 
     QXmlStreamReader xml(&f);
@@ -573,6 +732,7 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
                 bool hasFromMain   = false;
                 bool hasFromConst  = false;
                 bool hasMultiValue = false;
+                bool hasConcat     = false;
                 bool hasUnknown    = false;
                 QStringList unknown;
 
@@ -582,6 +742,7 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
                 Q_UNUSED(hasFromMain)
                 Q_UNUSED(hasFromConst)
                 Q_UNUSED(hasMultiValue)
+                Q_UNUSED(hasConcat)
 
                 for (int i=0;i<attributes.count();i++){
                     if (attributes.at(i).name().toString() == "structType")
@@ -598,6 +759,8 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
                         hasFromMain = true;
                     else if (attributes.at(i).name().toString() == "multiValue")
                         hasMultiValue = true;
+                    else if (attributes.at(i).name().toString() == "concat")
+                        hasConcat = true;
                     else if (attributes.at(i).name().toString() == "fromConst")
                         hasFromConst = true;
                     else{
@@ -692,78 +855,9 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
 
 bool ProtocolStructBuilder::createStructs(const QString &outputFileName)
 {
-    bool res = true;
-
-    QFile *fHeader = new QFile(outputFileName+".h");
-    QFile *fSource = new QFile(outputFileName+".cpp");
-
-    fHeader->open(QIODevice::WriteOnly);
-    fSource->open(QIODevice::WriteOnly);
-
-    QTextStream hStream (fHeader);
-    QTextStream sStream (fSource);
-
-    hStream.setCodec(QTextCodec::codecForName("UTF-8"));
-    sStream.setCodec(QTextCodec::codecForName("UTF-8"));
-
-    hStream << "#ifndef " << outputFileName.toUpper() << "_H" << "\n";
-    hStream << "#define " << outputFileName.toUpper() << "_H" << "\n" << "\n";
-    hStream << "#include \"meteoData_protorype.h\"" << "\n" << "\n";
-
-    sStream << "#include \"" << fHeader->fileName() << "\"" << "\n" << "\n";
-
-    int headPosition = hStream.pos();
-    QString externalStructDeclaration = "";
-
-    for (auto &pStruct: _protocolData){
-        hStream << "struct " << pStruct._structName << pStruct._structParent.isEmpty() ? "" : QString(": " + pStruct._structParent) << " {" << "\n" << "\n";
-        for (auto * sFieled : pStruct._structFields){
-            switch (sFieled->getObjectType()) {
-            case _objectType::SIMPLE:
-                fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
-                if (fObj){
-                    hStream << "\t" << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
-                }
-                break;
-            case _objectType::STRUCT:
-                structObject * sObj = dynamic_cast<structObject *>(sFieled);
-                if (sObj){
-                    hStream << "\t" << sObj->_exStructName << " " << sObj->_structAsFieldName << ";" << "\n";
-                    externalStructDeclaration.append(makeStructDeclaration(sObj));
-                }
-                break;
-            case _objectType::CONTAINER:
-                containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
-                if (cObj){
-                    hStream << "\t";
-                    switch (cObj->_containerType) {
-                    case typeList:
-                        hStream << "QList<" << cObj->_exContainerName << "> " << cObj->_containerAsFieldName;
-                        break;
-                    }
-                    hStream << ";" << "\n";
-                    if (cObj->_internalField->getObjectType() == _objectType::STRUCT){
-                        externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<containerObject *>(cObj->_internalField)));
-                    }
-                }
-                break;
-            }
-        }
-
-        hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
-        hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
-        hStream << "\t" << "bool isValid() const;" << "\n";
-        hStream << "}" << "\n" << "\n";
-    }
-
-    hStream << "#endif" << "\n";
-
-    hStream.seek(headPosition);
-    hStream << externalStructDeclaration;
-
-    fSource->close();
-    fHeader->close();
-    return res;
+    createHeaderFile(outputFileName+".h");
+    createSourceFile(outputFileName+".cpp");
+    return true;
 }
 
 bool ProtocolStructBuilder::createPersister(const QString &ruleFile)
