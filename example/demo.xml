@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<universalDecoder>
+<!-- ######################################################################################### -->            
+<!-- ######################################################################################### -->        
+<!-- ###################################### METAR ############################################ -->    
+<!-- ######################################################################################### -->        
+<!-- ######################################################################################### -->            
+    <meteo type="2" name="METAR" struct="MetarMeteoStruct" parent="MetarMeteoPrototype">
+        <state name="fLine" pattern="^ZCZC(\r\n|\r|\n)\d{2}\s\d{4}(\r\n|\r|\n)" field="METAR_F_LINE_TRASH" required="false" next="fLine2"/>
+        <state name="fLine2" pattern="TYPE:(METAR|SPECI).+(\r\n|\r|\n)" field="METAR_F_LINE3_TRASH" required="false" next="fLine3"/>
+        <state name="fLine3" pattern="ID:.+(\n|\r)" field="METAR_F_LINE4_TRASH" required="false" next="fLineEx"/>
+        <state name="fLineEx" pattern="CANCEL:\d+(\n|\r)" field="METAR_C_VALIDDATE" required="false" next="m_head">
+            <key pattern="CANCEL:"/>
+            <value pattern="\d+(\n|\r)?" del="(\n|\r|\n\r|\r\n)+" minimalCap="false" field="CANCEL_DATE">
+                <data structType="datetime" format="yyMMddhhmm" structName="cancelDate"/>
+                <db dbfield="CANCEL_DATE"/>
+            </value>
+        </state>
+        <state name="m_head" pattern="(METAR|SPECI)\s(COR\s)?.{4}\s\d{6}Z" field="METAR_HEAD" required="true" next="m_Auto">
+            <key pattern="Z$"/>
+            <value pattern="^(METAR|SPECI)\s(COR\s)?" del="\s$" minimalCap="false" field="METAR_TYPE">
+                <data structType="string" structName="type"/>
+                <db dbfield="TYPE"/>
+            </value>
+            <value pattern="^.{4}\s" del="\s" field="METAR_ICAO">
+                <data structType="string" structName="icao"/>
+                <db dbfield="ICAO"/>
+            </value>
+            <value pattern="^\d{2}\d{4}" field="METAR_DT">
+                <data structType="datetime" format="ddhhmm" structName="DT"/>
+                <db dbfield="DT"/>
+            </value>
+        </state>        
+        <state name="m_Auto" pattern="AUTO" field="METAR_IS_AUTO" required="false" next="m_Empty">
+            <value pattern="^AUTO" field="IS_AUTO"/>
+        </state>
+        <state name="m_Empty" pattern="NIL" field="METAR_IS_EMPTY" required="false" next="m_scf_wind_dir">
+            <value pattern="^NIL" field="IS_EMPTY"/>
+        </state>
+        <state name="m_scf_wind_dir" pattern="(\d{3}|VRB)P?\d{2,3}(GP?\d{2,3})?(MPS|KT)\s?(\d{3}V\d{3}\s)?(\d{4}|CAVOK)\s?(\d{4}(N|S)?(E|W)?)?" field="METAR_SFCWIND_VIS" required="false" next="m_rvr">
+            <value pattern="^(\d{3}|VRB)\s?" del="\s" minimalCap="false" field="SFCWINDDIR">
+                <data structType="string" structName="windDirection"/>
+                <db dbfield="WIND_DIRECTION"/>
+            </value>
+            <value pattern="^P?\d{2,3}" replace="P|+" field="SFCWINDSPD">
+                <data structType="int" structName="windSpeed"/>
+                <db dbfield="WIND_SPEED"/>
+            </value>
+            <value pattern="^GP?\d{2,3}" del="G" replace="P|+" field="SFCWINDGUST">
+                <data structType="int" structName="windGust"/>
+                <db dbfield="WIND_GUST"/>
+            </value>
+            <value pattern="^(MPS|KT)\s?" del="\s" minimalCap="false" field="SFCWINDMES">
+                <data structType="string" structName="windMeasure"/>
+                <db dbfield="WIND_MEASURE"/>
+            </value>
+            <value pattern="^\d{3}V\d{3}\s?" del="\s" minimalCap="false" field="SFCWINDCHANGE">
+                <data structType="string" structName="windChage"/>
+                <db dbfield="WIND_CHANGE"/>
+            </value>
+            <value pattern="^(\d{4}|CAVOK)\s?" del="\s" replace="CAVOK|9999" minimalCap="false" field="VISIBILITY">
+                <data structType="int" structName="visibility"/>
+                <db dbfield="VISIBILITY"/>
+            </value>
+            <value pattern="^\d{4,5}(N|S)?(E|W)?" minimalCap="false" field="MINVISIBILITY">
+                <data structType="string" structName="minVIsibility"/>
+                <db dbfield="MIN_VISIBILITY"/>
+            </value>
+        </state>
+        <state name="m_rvr" pattern="R\d{2}(L|R|C)?\/(P|M)?\d{4}\(\sR\d{2}(L|R|C)?\/(P|M)?\d{4})?" field="METAR_R_RVR" required="false" next="m_cur_weather">
+            <value pattern="^R\d{2}(L|R|C)?\/" del="\/" field="R_RVRVPP">
+                <data structType="string" structName="rvrRwy"/>
+                <db dbfield="RVR_RUNWAY"/>
+            </value>
+            <value pattern="^(P|M)?\d{4}\s?" del="\s" minimalCap="false" field="R_RVR">
+                <data structType="string" structName="rvr"/>
+                <db dbfield="RVR"/>
+            </value>
+            <value pattern="^R\d{2}(L|R|C)?\/" del="\/" minimalCap="false" field="R_PREV_RVRVPPP">
+                <data structType="string" structName="pRvrRwy"/>
+                <db dbfield="PREV_RVR_RUNWAY"/>
+            </value>
+            <value pattern="^(P|M)?\d{4}" field="R_PREV_RVR">
+                <data structType="string" structName="pRvr"/>
+                <db dbfield="PREV_RVR"/>
+            </value>
+        </state>
+        <state name="m_cur_weather" pattern="\s(\+|-|VC)?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|FZUP|FC|SHGR|SHGS|SHRA|SHSN|SHUP|TSGR|TSGS|TSRA|TSSN|TSUP|UP|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG)\s?(FG|PO|FC|DS|SS|TS|SH|BLSN|BLSA|BLDU|VA)?\s?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|FZUP|FC|SHGR|SHGS|SHRA|SHSN|SHUP|TSGR|TSGS|TSRA|TSSN|TSUP|UP|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG)?" field="METAR_CURWEATHER" required="false" next="m_cloud">
+            <value pattern="^(\+|-|VC)?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|FZUP|FC|SHGR|SHGS|SHRA|SHSN|SHUP|TSGR|TSGS|TSRA|TSSN|TSUP|UP|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG)\s?(FG|PO|FC|DS|SS|TS|SH|BLSN|BLSA|BLDU|VA)?\s?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|FZUP|FC|SHGR|SHGS|SHRA|SHSN|SHUP|TSGR|TSGS|TSRA|TSSN|TSUP|UP|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG)?" minimalCap="false" repeated="true" concat=" " field="CURWEATHER">
+                <data structType="string" structName="weather"/>
+                <db dbfield="WEATHER"/>
+            </value>
+        </state>
+        <state name="m_cloud" pattern="(SCT|FEW|BKN|OVC)(\d{3}|\/\/\/)(\sVV(\d{3}|\/\/\/))?(\sNSC|\sNCD)?\s?(CB|TCU)?" field="METAR_CLOUD" required="false" next="m_temp_dew_pressure">
+            <value pattern="^(SCT|FEW|BKN|OVC)(\d{3}|\/\/\/)(\sVV(\d{3}|\/\/\/))?(\sNSC)?\s?(CB|TCU)?\s?" del="\s$" minimalCap="false" repeated="true" concat=" " field="CLOUD">
+                <data structType="string" structName="clouds"/>
+                <db dbfield="CLOUDS"/>
+            </value>
+        </state>
+        <state name="m_temp_dew_pressure" pattern="M?\d{2}\/M?\d{2}\sQ?\d{4}" field="METAR_M_TEMP_DEW_QNH" required="false" next="m_prev_weather">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^M?\d{2}\/" del="\/" replace="M|-" field="M_TEMP">
+                <data structType="int" structName="temp"/>
+                <db dbfield="TEMP"/>
+            </value>
+            <value pattern="^M?\d{2}\s" del="\s" replace="M|-" field="M_DEW_POINT">
+                <data structType="int" structName="dewPoint"/>
+                <db dbfield="DEW_POINT"/>
+            </value>
+            <value pattern="^Q?\d{4}" del="Q" field="Q_PRESURE">
+                <data structType="int" structName="presure"/>
+                <db dbfield="QNH"/>
+            </value>
+        </state>
+        <state name="m_prev_weather" pattern="(REFZDZ|REFZRA|REDZ|RE(SH)?RA|RERASN|RE(SH)?SN|RESG|RESHGR|RESHGS|REBLSN|RESS|REDS|RETSRA|RETSSN|RETSGR|RETSGS|RETS|REFC|REVA|REPL|REUP|REFZUP|RETSUP|RESHUP)" field="METAR_PREV_WEATHER" required="false" next="m_wind_shear">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^(REFZDZ|REFZRA|REDZ|RE(SH)?RA|RERASN|RE(SH)?SN|RESG|RESHGR|RESHGS|REBLSN|RESS|REDS|RETSRA|RETSSN|RETSGR|RETSGS|RETS|REFC|REVA|REPL|REUP|REFZUP|RETSUP|RESHUP)" repeated="true" concat=" " field="PREV_WEATHER">
+                <data structType="string" structName="prevWeather"/>
+                <db dbfield="PREV_WEATHER"/>
+            </value>
+        </state>
+        <state name="m_wind_shear" pattern="WS\s(R\d{2}(L|C|R)?|ALL\sRWY)" field="METAR_WINDSHEAR" required="false" next="m_sea_temp">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^WS\s(R\d{2}(L|C|R)?|ALL\sRWY)" minimalCap="false" field="WINDSHEAR">
+                <data structType="string" structName="windShear"/>
+                <db dbfield="WIND_SHEAR"/>
+            </value>
+        </state>
+        <state name="m_sea_temp" pattern="W(M)?\d{2}\/(S\d|H\d{1,3})" field="METAR_SEATEMP" required="false" next="m_vpp_state">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^W(M)?\d{2}\/(S\d|H\d{1,3})" field="SEATEMP">
+                <data structType="string" structName="seaTemp"/>
+                <db dbfield="SEA_TEMP"/>
+            </value>
+        </state>
+        <state name="m_vpp_state" pattern="R(\d{2}(R|L|C)?\/(CLRD\/{2}|(\/|\d){0,2}(\/{2}|\d{2}){0,2})|\/SNOCLO)" field="METAR_VPPSTATE" required="false" next="m_trend">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^R\d{2}(R|L|C)?\/" del="\/$" field="VPPSTATE_RWY">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="string" structName="rwy"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^(\/|\d)" replace="/|0" field="VPPSTATE_SCURF">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="int" structName="scurf"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^(\/|\d)" replace="/|0" field="VPPSTATE_POLLUTION">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="int" structName="pollution"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^(\/{2}|\d{2})" replace="//|0" field="VPPSTATE_SCURF_HEIGHT">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="int" structName="scurfHeight"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^(\/{2}|\d{2})" replace="//|0" field="VPPSTATE_CLUTCH">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="int" structName="clutch"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^CLRD\/{2}" field="VPPSTATE_CLRD">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="bool" structName="rwyCleared"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^R\/SNOCLO" field="VPPSTATE">
+                <structdata structType="rwyStateStruct" structName="rwyState">
+                    <data structType="bool" structName="rwySNOCLO"/>
+                </structdata>                
+                <db dbfield="RUNWAY_STATE" multiValue="true"/>
+            </value>
+        </state>
+        <state name="m_trend" pattern="(NOSIG|BECMG|TEMPO)" field="METAR_TREND" required="false" repeated="true" concat="\n" next="m_fin">
+            <key pattern="=(\r|\n|\r\n)"/>
+            <value pattern="^(NOSIG|BECMG|TEMPO)\s?=?" del="\s=?" minimalCap="false" field="TREND">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" "/>
+                <listdata structType="List Trend" structName="trends" create="true">
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="string" structName="trend"/>
+                    </structdata>
+                </listdata>
+                <db dbfield="TREND" value="joinedTrend" multiValue="true" concat="|"/>
+            </value>
+            <value pattern="^(FM|TL|AT)?\d{4}\s?" del="\s" minimalCap="false" field="TREND_PERIOD_START">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" "/>
+                <listdata structType="List Trend" structName="trends" >
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="string" structName="trendStart"/>
+                    </structdata>
+                </listdata>                
+            </value>
+            <value pattern="^(FM|TL|AT)?\d{4}\s?" del="\s" minimalCap="false" field="TREND_PERIOD_END">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                <listdata structType="List Trend" structName="trends" >
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="string" structName="trendEnd"/>
+                    </structdata>
+                </listdata>                                
+            </value>
+            <value pattern="^(\d{3}|VRB)P?\d{2,3}(GP?\d{2,3})?">
+                <subvalue pattern="^(\d{3}|VRB)" field="TREND_WINDDIR">
+                    <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                    <listdata structType="List Trend" structName="trends" >
+                        <structdata structType="Trend" structName="trend">
+                            <data structType="string" structName="windDirection"/>
+                        </structdata>
+                    </listdata>                                
+                </subvalue>
+                <subvalue pattern="P?\d{2,3}" replace="P|+" field="TREND_WINDSPD">
+                    <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                    <listdata structType="List Trend" structName="trends" >
+                        <structdata structType="Trend" structName="trend">
+                            <data structType="int" structName="windSpeed"/>
+                        </structdata>
+                    </listdata>                                
+                </subvalue>
+                <subvalue pattern="^GP?\d{2,3}" del="G" replace="P|+" field="TREND_WINDGUST">
+                    <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                    <listdata structType="List Trend" structName="trends" >
+                        <structdata structType="Trend" structName="trend">
+                            <data structType="int" structName="windDirection"/>
+                        </structdata>
+                    </listdata>                                
+                </subvalue>                                
+                <subvalue pattern="^(MPS|KT)\s?" field="TREND_WINDMES">
+                    <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                    <listdata structType="List Trend" structName="trends" >
+                        <structdata structType="Trend" structName="trend">
+                            <data structType="string" structName="windMeasure"/>
+                        </structdata>
+                    </listdata>                                
+                </subvalue>                                                
+            </value>
+            <value pattern="^(\d{4}|CAVOK)\s?" del="\s" replace="CAVOK|9999" minimalCap="false" field="TREND_VISIBILITY">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                <listdata structType="List Trend" structName="trends" >
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="int" structName="visibility"/>
+                    </structdata>
+                </listdata>                                                
+            </value>
+            <value pattern="^(/+|-)?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|SHGR|SHGS|SHRA|SHSN|TSGR|TSGS|TSRA|TSSN|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|FC|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG|NSW)\s?" del="\s" minimalCap="false" repeated="true" concat=" " field="TREND_WEATHER">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                <listdata structType="List Trend" structName="trends" >
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="string" structName="weather"/>
+                    </structdata>
+                </listdata>                                                
+            </value>
+            <value pattern="^(SCT|FEW|BKN|OVC)(\d{3}|\/\/\/)(\sVV(\d{3}|\/\/\/))?(\sNSC)?\s?(CB|TCU)?\s?" del="\s$" minimalCap="false" repeated="true" concat=" " field="TREND_CLOUD">
+                <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
+                <listdata structType="List Trend" structName="trends" >
+                    <structdata structType="Trend" structName="trend">
+                        <data structType="string" structName="clouds"/>
+                    </structdata>
+                </listdata>                                                
+            </value>
+        </state>
+        <state name="m_fin" pattern="NNNN(\n|\r)?" field="METAR_С_FIN" required="false" next="FINFIN"/>        
+    </meteo>    
+<universalDecoder>
