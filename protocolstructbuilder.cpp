@@ -379,6 +379,7 @@ void ProtocolStructBuilder::createSourceFile(const QString &fileName)
     sStream << "#include \"" << headerFile << ".h" << "\"" << "\n" << "\n";
 
     sStream << createLoadFromHashFunction();
+    sStream << createToHashFunction();
     sStream << createIsValidFunction();
 
 /*
@@ -545,46 +546,20 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
 
     for (auto &pStruct: _protocolData){
         sStream << "QVariantHash " << pStruct._structName << "::toVariantHash() const{\n";
+        sStream << "\t" << "QVariantHash result;" << "\n";
+        sStream << "\t" << "QVaraintHash valueHash;\n";
+        sStream << "\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    sStream << "\t" << "if (hash.keys().contains(\"" << fObj->_hashKey << "\")){\n";
-                    sStream << "\t\t" << "QVariantHash valuesHash = hash.value(\"" << fObj->_hashKey << "\").toHash();\n";
-                    sStream << "\t\t" << "if (valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")){\n";
-                    sStream << "\t\t\t" << fObj->_fieldName << " = ";
-                    if (fObj->_fieldType == "int"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toInt() * " << fObj->_fieldScale;
-                    }
-                    else if (fObj->_fieldType == "string"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toString()";
-                    }
-                    else if (fObj->_fieldType == "datetime"){
-                        sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "date"){
-                        sStream << "QDate::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "time"){
-                        sStream << "QTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "double"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toDouble() * " << fObj->_fieldScale;
-                    }
-                    else if (fObj->_fieldType == "bool"){
-                        sStream << "valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")";
-                    }
-                    else{
-                        sStream << "NULL";
-                    }
-                    sStream << ";\n";
-                    sStream << "\t\t}\n";
-                    sStream << "\t}\n";
-                    if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                        sStream << "\t" << "else" << "\n";
-                        sStream << "\t\t" << fObj->_fieldName << " = -100;" << "\n";
-                    }
+                    sStream << "\t" << "if (result.keys().contains(\"" << fObj->_hashKey << "\")" << "\n";
+                    sStream << "\t\t" << "valueHash = result.take(\"" << fObj->_hashKey << "\").toHash();" << "\n";
+                    sStream << "\t" << "valueHash[\"" << fObj->_resultHashListKey << "\"] = " << fObj->_fieldName << ";\n";
+                    sStream << "\t" << "result[\"" << fObj->_hashKey << "\"] = valueHash;\n";
+                    sStream << "\t" << "valueHash.clear();\n";
+                    sStream << "\n";
                 }
                 break;
             }
@@ -606,6 +581,7 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
             }
             }
         }
+        sStream << "\t" << "return result;" << "\n";
         sStream << "}" << "\n" << "\n";
     }
     return result;
