@@ -61,18 +61,19 @@ void ProtocolStructBuilder::loadXmlData()
                 QHash<QString , containerObject *>  containtersInState;
                 QHash<QString , structObject *>     structsInState;
 
-                while (token != QXmlStreamReader::EndElement && xml.name() != "state"){
+                while (xml.name() != "state" /*&& token != QXmlStreamReader::EndElement*/){
                     if (xml.name().toString() == "value"){
                         QStringList valuesInSection;
                         if (xml.attributes().hasAttribute("field"))
                             curValueName = xml.attributes().value("field").toString();
 
-                        while (token != QXmlStreamReader::EndElement && xml.name() == "value"){
+                        token = xml.readNext();
+                        while (/*token != QXmlStreamReader::EndElement &&*/ xml.name() != "value"){
 
-                            if (xml.name() == "data"){
+                            if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
                                 fieldObject * fieldObj = new fieldObject;
-                                fieldObj->_hashKey = curStateName;
-                                fieldObj->_resultHashListKey = curValueName;
+                                fieldObj->_hashKey = curValueName;
+                                fieldObj->_resultHashListKey = curStateName;
                                 if (attributes.hasAttribute("reqired"))
                                     fieldObj->required = attributes.value("reqired").toString() == "true";
                                 else
@@ -83,11 +84,15 @@ void ProtocolStructBuilder::loadXmlData()
                                     fieldObj->_fieldFormat = xml.attributes().value("format").toString();
                                 if (xml.attributes().hasAttribute("scale"))
                                     fieldObj->_fieldScale = xml.attributes().value("scale").toString();
-                                builder->_structFields.append(fieldObj);
 
-                                valuesInSection << xml.attributes().value("structName").toString();
+                                if (!builder->_fieldsNames.contains(fieldObj->_fieldName)){
+                                    builder->_structFields.append(fieldObj);
+                                    builder->_fieldsNames << fieldObj->_fieldName;
+
+                                    valuesInSection << xml.attributes().value("structName").toString();
+                                }
                             }
-                            else if (xml.name() == "listdata"){
+                            else if (xml.name() == "listdata" && token != QXmlStreamReader::EndElement){
                                 QString curContainterName;
                                 QStringList sl = xml.attributes().value("structType").toString().split(" ");
                                 curContainterName = sl.last();
@@ -103,9 +108,10 @@ void ProtocolStructBuilder::loadXmlData()
                                     builder->_structFields.append(cObj);
                                 }
                                 else{
-                                    while (token != QXmlStreamReader::EndElement && xml.name() != "listdata"){
+                                    token = xml.readNext();
+                                    while (/*token != QXmlStreamReader::EndElement &&*/ xml.name() != "listdata"){
 
-                                        if (xml.name() == "data"){
+                                        if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
                                             fieldObject * fieldObj = new fieldObject;
                                             fieldObj->_hashKey = curStateName;
                                             fieldObj->_resultHashListKey = attributes.value("field").toString();
@@ -123,7 +129,7 @@ void ProtocolStructBuilder::loadXmlData()
 
                                             valuesInSection << xml.attributes().value("structName").toString();
                                         }
-                                        else if (xml.name() == "structdata"){
+                                        else if (xml.name() == "structdata" && token != QXmlStreamReader::EndElement){
                                             QString curStructName = xml.attributes().value("structType").toString();
                                             if (!structsInState.keys().contains(curStructName)){
                                                 structObject * sObj = new structObject;
@@ -133,9 +139,10 @@ void ProtocolStructBuilder::loadXmlData()
                                                 containtersInState[curContainterName]->_inlineData.append(sObj);
                                             }
 
+                                            token = xml.readNext();
                                             while (token != QXmlStreamReader::EndElement && xml.name() != "structdata"){
 
-                                                if (xml.name() == "data"){
+                                                if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
                                                     fieldObject * fieldObj = new fieldObject;
                                                     fieldObj->_hashKey = curStateName;
                                                     fieldObj->_resultHashListKey = attributes.value("field").toString();
@@ -160,7 +167,7 @@ void ProtocolStructBuilder::loadXmlData()
                                     }
                                 }
                             }
-                            else if (xml.name() == "structdata"){
+                            else if (xml.name() == "structdata" && token != QXmlStreamReader::EndElement){
 
                                 QString curStructName = xml.attributes().value("structType").toString();
                                 if (!structsInState.keys().contains(curStructName)){
@@ -171,9 +178,10 @@ void ProtocolStructBuilder::loadXmlData()
                                     structsInState[sObj->_exStructName] = sObj;
                                 }
 
-                                while (token != QXmlStreamReader::EndElement && xml.name() != "structdata"){
+                                token = xml.readNext();
+                                while (/*token != QXmlStreamReader::EndElement && */xml.name() != "structdata"){
 
-                                    if (xml.name() == "data"){
+                                    if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
                                         fieldObject * fieldObj = new fieldObject;
                                         fieldObj->_hashKey = curStateName;
                                         fieldObj->_resultHashListKey = attributes.value("field").toString();
@@ -195,7 +203,7 @@ void ProtocolStructBuilder::loadXmlData()
                                 }
 
                             }
-                            else if (xml.name() == "db"){
+                            else if (xml.name() == "db" && token != QXmlStreamReader::EndElement){
                                 QXmlStreamAttributes db_attr = xml.attributes();
                                 QString curTableName = dbTableName ;
                                 if (db_attr.hasAttribute("table"))
@@ -241,6 +249,7 @@ void ProtocolStructBuilder::loadXmlData()
                             token = xml.readNext();
                         }
                     }
+                    token = xml.readNext();
                 }
 // end state section
             }
@@ -263,7 +272,7 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
     fHeader->open(QIODevice::WriteOnly);
 
     QTextStream hStream (fHeader);
-    QString outputFileName = fileName.mid(0,fileName.length()-4);
+    QString outputFileName = fileName.mid(0,fileName.length()-2);
 
     hStream.setCodec(QTextCodec::codecForName("UTF-8"));
 
@@ -276,14 +285,37 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
 
     for (auto &pStruct: _protocolData){
         hStream << "struct " << pStruct._structName;
-        hStream << QString(pStruct._structParent.isEmpty() ? "" : QString(": %1").arg(pStruct._structParent));
+        hStream << QString(pStruct._structParent.isEmpty() ? "" : QString(": public %1").arg(pStruct._structParent));
         hStream << " {\n\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    hStream << "\t" << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
+                    if (fObj->_fieldType == "int"){
+                        hStream << "\t" << "int " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "string"){
+                        hStream << "\t" << "QString " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "datetime"){
+                        hStream << "\t" << "QDateTime " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "date"){
+                        hStream << "\t" << "QDate" << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "time"){
+                        hStream << "\t" << "QTime " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "double"){
+                        hStream << "\t" << "double " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else if (fObj->_fieldType == "bool"){
+                        hStream << "\t" << "bool " << fObj->_fieldName << ";" << "\n";
+                    }
+                    else{
+                        hStream << "\t" << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
+                    }
                 }
                 break;
             }
@@ -296,6 +328,7 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
                 break;
             }
             case _objectType::CONTAINER:{
+                /*
                 containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
                 if (cObj){
                     hStream << "\t";
@@ -306,19 +339,22 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
                     }
                     }
                     hStream << ";" << "\n";
-                    if (cObj->_internalField->getObjectType() == _objectType::STRUCT){
+                    if (cObj->_internalField != nullptr && cObj->_internalField->getObjectType() == _objectType::STRUCT){
                         externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<structObject *>(cObj->_internalField)));
                     }
                 }
+            */
                 break;
             }
             }
+            fHeader->flush();
         }
 
+        hStream << "\n";
         hStream << "\t" << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
         hStream << "\t" << "QVariantHash toVariantHash() const;" << "\n";
         hStream << "\t" << "bool isValid() const;" << "\n";
-        hStream << "}" << "\n" << "\n";
+        hStream << "};" << "\n" << "\n";
     }
 
     hStream << "#endif" << "\n";
@@ -327,6 +363,7 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
     hStream << externalStructDeclaration;
 
     fHeader->close();
+    delete fHeader;
 }
 
 void ProtocolStructBuilder::createSourceFile(const QString &fileName)
@@ -361,13 +398,13 @@ void ProtocolStructBuilder::createSourceFile(const QString &fileName)
                         sStream << "valueHash.value(\"" << fObj->_hashKey << "\").toString()";
                     }
                     else if (fObj->_fieldType == "datetime"){
-                        sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                        sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
                     }
                     else if (fObj->_fieldType == "date"){
-                        sStream << "QDate::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                        sStream << "QDate::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
                     }
                     else if (fObj->_fieldType == "time"){
-                        sStream << "QTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), " << fObj->_fieldFormat << ")";
+                        sStream << "QTime::fromString(valueHash.value(\"" << fObj->_hashKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
                     }
                     else if (fObj->_fieldType == "double"){
                         sStream << "valueHash.value(\"" << fObj->_hashKey << "\").toDouble() * " << fObj->_fieldScale;
@@ -406,6 +443,7 @@ void ProtocolStructBuilder::createSourceFile(const QString &fileName)
     }
 
     fSource->close();
+    delete fSource;
 }
 
 ProtocolStructBuilder::ProtocolStructBuilder(const QString &ruleFilePath):

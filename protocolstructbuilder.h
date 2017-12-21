@@ -63,6 +63,7 @@ struct containerObject: public baseFieldObject{
 struct structBuilderObject{
     QString _structName;
     QString _structParent;
+    QStringList _fieldsNames;
     QList< baseFieldObject *> _structFields;
 
     QHash<QString, QList<fieldDbData> > dbData;
