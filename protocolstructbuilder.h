@@ -80,6 +80,10 @@ class ProtocolStructBuilder
     QString makeStructDeclaration(structObject *);
     void createHeaderFile(const QString &fileName);
     void createSourceFile(const QString &fileName);
+
+    QByteArray createLoadFromHashFunction();
+    QByteArray createToHashFunction();
+    QByteArray createIsValidFunction();
 public:
     ProtocolStructBuilder(const QString &ruleFilePath);
     static bool validate(const QString &ruleFile);
