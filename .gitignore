@@ -5,5 +5,5 @@ qrc_*.cpp
 */.obj/*
 */.moc/*
 */.rcc/*
-*/bin/*
+bin/*
 Makefile
