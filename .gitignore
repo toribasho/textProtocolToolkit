@@ -1,2 +1,9 @@
+*.o
 *.pro.user
-*~
+moc_*.cpp
+qrc_*.cpp
+*/.obj/*
+*/.moc/*
+*/.rcc/*
+*/bin/*
+Makefile
