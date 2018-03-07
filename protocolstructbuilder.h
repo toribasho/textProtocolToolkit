@@ -16,7 +16,7 @@ class ProtocolStructBuilder
     QString                             _ruleFile;
 
     void loadXmlData();
-//    fieldObject * makeFieldObject(const QXmlStreamReader &xml);
+
     QByteArray makeStructDeclaration(structObject *);
     void createHeaderFile(const QString &fileName);
     void createSourceFile(const QString &fileName);

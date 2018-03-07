@@ -56,7 +56,6 @@ struct containerObject: public baseFieldObject{
     QString _containerAsFieldName;              // variableName
 
     QList< baseFieldObject *> _inlineData;      // structData or fieldData. todo: fix
-    baseFieldObject * _internalField;           // only one value can be in list. struct or field
 };
 
 struct structBuilderObject: public dbObject{

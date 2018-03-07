@@ -107,65 +107,64 @@ void ProtocolStructBuilder::loadXmlData()
                                     containtersInState[curContainterName] = cObj;
                                     builder->_structFields.append(cObj);
                                 }
-                                else{
-                                    token = xml.readNext();
-                                    while (/*token != QXmlStreamReader::EndElement &&*/ xml.name() != "listdata"){
+                                token = xml.readNext();
+                                while (/*token != QXmlStreamReader::EndElement &&*/ xml.name() != "listdata"){
 
-                                        if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
-                                            fieldObject * fieldObj = new fieldObject;
-                                            fieldObj->_hashKey = curStateName;
-                                            fieldObj->_resultHashListKey = attributes.value("field").toString();
-                                            if (attributes.hasAttribute("reqired"))
-                                                fieldObj->required = attributes.value("reqired").toString() == "true";
-                                            else
-                                                fieldObj->required = false;
-                                            fieldObj->_fieldName = xml.attributes().value("structName").toString();
-                                            fieldObj->_fieldType = xml.attributes().value("structType").toString();
-                                            if (xml.attributes().hasAttribute("format"))
-                                                fieldObj->_fieldFormat = xml.attributes().value("format").toString();
-                                            if (xml.attributes().hasAttribute("scale"))
-                                                fieldObj->_fieldScale = xml.attributes().value("scale").toString();
-                                            containtersInState[curContainterName]->_inlineData.append(fieldObj);
+                                    if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
+                                        fieldObject * fieldObj = new fieldObject;
+                                        fieldObj->_hashKey = curStateName;
+                                        fieldObj->_resultHashListKey = attributes.value("field").toString();
+                                        if (attributes.hasAttribute("reqired"))
+                                            fieldObj->required = attributes.value("reqired").toString() == "true";
+                                        else
+                                            fieldObj->required = false;
+                                        fieldObj->_fieldName = xml.attributes().value("structName").toString();
+                                        fieldObj->_fieldType = xml.attributes().value("structType").toString();
+                                        if (xml.attributes().hasAttribute("format"))
+                                            fieldObj->_fieldFormat = xml.attributes().value("format").toString();
+                                        if (xml.attributes().hasAttribute("scale"))
+                                            fieldObj->_fieldScale = xml.attributes().value("scale").toString();
+                                        containtersInState[curContainterName]->_inlineData.append(fieldObj);
 
-                                            valuesInSection << xml.attributes().value("structName").toString();
-                                        }
-                                        else if (xml.name() == "structdata" && token != QXmlStreamReader::EndElement){
-                                            QString curStructName = xml.attributes().value("structType").toString();
-                                            if (!structsInState.keys().contains(curStructName)){
-                                                structObject * sObj = new structObject;
-                                                sObj->_objectNameAsType = curStructName;
-                                                sObj->_fieldNameAsField = xml.attributes().value("structName").toString();
-                                                structsInState[sObj->_objectNameAsType] = sObj;
-                                                containtersInState[curContainterName]->_inlineData.append(sObj);
-                                            }
-
-                                            token = xml.readNext();
-                                            while (token != QXmlStreamReader::EndElement && xml.name() != "structdata"){
-
-                                                if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
-                                                    fieldObject * fieldObj = new fieldObject;
-                                                    fieldObj->_hashKey = curStateName;
-                                                    fieldObj->_resultHashListKey = attributes.value("field").toString();
-                                                    if (attributes.hasAttribute("reqired"))
-                                                        fieldObj->required = attributes.value("reqired").toString() == "true";
-                                                    else
-                                                        fieldObj->required = false;
-                                                    fieldObj->_fieldName = xml.attributes().value("structName").toString();
-                                                    fieldObj->_fieldType = xml.attributes().value("structType").toString();
-                                                    if (xml.attributes().hasAttribute("format"))
-                                                        fieldObj->_fieldFormat = xml.attributes().value("format").toString();
-                                                    if (xml.attributes().hasAttribute("scale"))
-                                                        fieldObj->_fieldScale = xml.attributes().value("scale").toString();
-                                                    structsInState[curStructName]->_structFields.append(fieldObj);
-
-                                                    valuesInSection << xml.attributes().value("structName").toString();
-                                                }
-                                                token = xml.readNext();
-                                            }
-                                        }
-                                        token = xml.readNext();
+                                        valuesInSection << xml.attributes().value("structName").toString();
                                     }
+                                    else if (xml.name() == "structdata" && token != QXmlStreamReader::EndElement){
+                                        QString curStructName = xml.attributes().value("structType").toString();
+                                        if (!structsInState.keys().contains(curStructName)){
+                                            structObject * sObj = new structObject;
+                                            sObj->_objectNameAsType = curStructName;
+                                            sObj->_fieldNameAsField = xml.attributes().value("structName").toString();
+                                            structsInState[sObj->_objectNameAsType] = sObj;
+                                            containtersInState[curContainterName]->_inlineData.append(sObj);
+                                        }
+
+                                        token = xml.readNext();
+                                        while (token != QXmlStreamReader::EndElement && xml.name() != "structdata"){
+
+                                            if (xml.name() == "data" && token != QXmlStreamReader::EndElement){
+                                                fieldObject * fieldObj = new fieldObject;
+                                                fieldObj->_hashKey = curStateName;
+                                                fieldObj->_resultHashListKey = attributes.value("field").toString();
+                                                if (attributes.hasAttribute("reqired"))
+                                                    fieldObj->required = attributes.value("reqired").toString() == "true";
+                                                else
+                                                    fieldObj->required = false;
+                                                fieldObj->_fieldName = xml.attributes().value("structName").toString();
+                                                fieldObj->_fieldType = xml.attributes().value("structType").toString();
+                                                if (xml.attributes().hasAttribute("format"))
+                                                    fieldObj->_fieldFormat = xml.attributes().value("format").toString();
+                                                if (xml.attributes().hasAttribute("scale"))
+                                                    fieldObj->_fieldScale = xml.attributes().value("scale").toString();
+                                                structsInState[curStructName]->_structFields.append(fieldObj);
+
+                                                valuesInSection << xml.attributes().value("structName").toString();
+                                            }
+                                            token = xml.readNext();
+                                        }
+                                    }
+                                    token = xml.readNext();
                                 }
+
                             }
                             else if (xml.name() == "structdata" && token != QXmlStreamReader::EndElement){
 
@@ -374,7 +373,6 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
                 break;
             }
             case _objectType::CONTAINER:{
-                /*
                 containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
                 if (cObj){
                     tStream << "\t";
@@ -385,11 +383,13 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
                     }
                     }
                     tStream << ";" << "\n";
-                    if (cObj->_internalField != nullptr && cObj->_internalField->getObjectType() == _objectType::STRUCT){
-                        externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<structObject *>(cObj->_internalField)));
+                    if (!cObj->_inlineData.isEmpty()){
+                        for (auto * sFieled : cObj->_inlineData){
+                            if (sFieled->getObjectType() == STRUCT)
+                                externalStructDeclaration.append(makeStructDeclaration(dynamic_cast<structObject *>(sFieled)));
+                        }
                     }
                 }
-            */
                 break;
             }
             }
