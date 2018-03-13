@@ -25,6 +25,8 @@ struct fieldObject: public baseFieldObject{
     QString _fieldFormat;
     QString _fieldScale;
     bool    required;
+    bool    multiValue;
+    QString concat_str;
 
     QString _hashKey;                           // key for state hash
     QString _resultHashListKey;                 // key for value hash from state hash
@@ -47,13 +49,11 @@ struct structObject: public baseFieldObject , public complexObject, public dbObj
     QList< baseFieldObject *> _structFields;
 };
 
-struct containerObject: public baseFieldObject{
+struct containerObject: public baseFieldObject, public complexObject{
 
     virtual _objectType getObjectType(){return CONTAINER;}
 
     containerType _containerType;               // enum?
-    QString _exContainerName;                   // name as Type
-    QString _containerAsFieldName;              // variableName
 
     QList< baseFieldObject *> _inlineData;      // structData or fieldData. todo: fix
 };
