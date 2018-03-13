@@ -473,6 +473,69 @@ QByteArray ProtocolStructBuilder::makeFieldAssignment(const QString &hashKey, co
     return result;
 }
 
+QByteArray ProtocolStructBuilder::makeStructListFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType,
+                                                                const QString &fieldName, const QString &fieldFormat, const QString &fieldScale,
+                                                                const QString &structType, const QString &structName, const QString &containerName,
+                                                                bool createStruct, bool storeToContainer)
+{
+    QByteArray result;
+
+    QTextStream sStream (&result, QIODevice::WriteOnly);
+    sStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    if (createStruct){
+        sStream << insertTab(1) << "if (hash.keys().contains(\"" << hashKey << "\")){\n";
+        sStream << insertTab(2) << structType << " " << structName << ";\n";
+    }
+    sStream << insertTab(2) << "QVariantHash valuesHash = hash.value(\"" << hashKey << "\").toHash();\n";
+    sStream << insertTab(2) << "if (valuesHash.keys().contains(\"" << internalHashKey << "\")){\n";
+
+    sStream << insertTab(3) << fieldName << " = ";
+
+    if (fieldType == "int"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toInt()";
+        if (!fieldScale.isEmpty())
+            sStream << " * "<< fieldScale;
+    }
+    else if (fieldType == "string"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toString()";
+    }
+    else if (fieldType == "datetime"){
+        sStream << "QDateTime::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "date"){
+        sStream << "QDate::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "time"){
+        sStream << "QTime::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "double"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toDouble()";
+        if (!fieldScale.isEmpty())
+            sStream << " * "<< fieldScale;
+    }
+    else if (fieldType == "bool"){
+        sStream << "valuesHash.keys().contains(\"" << internalHashKey << "\")";
+    }
+    else{
+        sStream << "NULL";
+    }
+    sStream << ";\n";
+    sStream << insertTab(2) << "}\n";
+    if (fieldType == "int" || fieldType == "double"){
+        sStream << insertTab(2) << "else" << "\n";
+        sStream << insertTab(3) << fieldName << " = -100;" << "\n";
+    }
+
+    if (storeToContainer){
+        sStream << insertTab(2) << containerName << " << " << structName << ";\n";
+        sStream << insertTab(1) << "}\n";
+        sStream << "\n";
+    }
+
+    return result;
+}
+
 QString ProtocolStructBuilder::makeFieldValidation(const QString &fieldType, const QString &fieldName)
 {
     QString result;
@@ -514,7 +577,8 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    sStream << makeFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
+                    sStream << makeFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,
+                                                   fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
                 }
                 break;
             }
@@ -524,7 +588,9 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
                     for (auto * fieldObj : sObj->_structFields ){
                         fieldObject * fObj = dynamic_cast<fieldObject *>(fieldObj);
                         if (fObj){
-                            sStream << makeFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,sObj->_fieldNameAsField + "." + fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
+                            sStream << makeFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,
+                                                           sObj->_fieldNameAsField + "." + fObj->_fieldName,
+                                                           fObj->_fieldFormat,fObj->_fieldScale);
                         }
                     }
                 }
@@ -539,10 +605,20 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
                                 // TODO: CREATE OBJCET -> FILL OBJECT (x) -> STORE OBJECT
                                 structObject * sObj = dynamic_cast<structObject *>(sFieled);
                                 if (sObj){
+                                    int i = 1;
+                                    bool createStruct = true;
+                                    bool store = false;
                                     for (auto * fieldObj : sObj->_structFields ){
                                         fieldObject * fObj = dynamic_cast<fieldObject *>(fieldObj);
                                         if (fObj){
-                                            sStream << makeFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,sObj->_fieldNameAsField + "." + fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
+                                            if (i > 1)
+                                                createStruct = false;
+                                            if (i++ == sObj->_structFields.count())
+                                                store = true;
+                                            sStream << makeStructListFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,
+                                                                                     sObj->_fieldNameAsField + "." + fObj->_fieldName,fObj->_fieldFormat,
+                                                                                     fObj->_fieldScale,sObj->_objectNameAsType,
+                                                                                     sObj->_fieldNameAsField, cObj->_fieldNameAsField, createStruct,store);
                                         }
                                     }
                                 }
@@ -618,7 +694,7 @@ QByteArray ProtocolStructBuilder::createIsValidFunction()
 
     for (auto &pStruct: _protocolData){
         sStream << "bool " << pStruct._structName << "::isValid() const{\n\n";
-        sStream << "\tbool result = true;\n";
+        sStream << insertTab(1) << "bool result = true;\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:{
@@ -633,8 +709,14 @@ QByteArray ProtocolStructBuilder::createIsValidFunction()
             case _objectType::STRUCT:{
                 structObject * sObj = dynamic_cast<structObject *>(sFieled);
                 if (sObj){
-                    continue;
-//                    TODO
+                    if (sObj){
+                        for (auto * fieldObj : sObj->_structFields ){
+                            fieldObject * fObj = dynamic_cast<fieldObject *>(fieldObj);
+                            if (fObj){
+                                sStream << makeFieldValidation(fObj->_fieldType,sObj->_fieldNameAsField + "." + fObj->_fieldName);
+                            }
+                        }
+                    }
                 }
                 break;
             }
