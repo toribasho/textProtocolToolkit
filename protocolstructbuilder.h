@@ -17,9 +17,15 @@ class ProtocolStructBuilder
 
     void loadXmlData();
 
-    QByteArray makeStructDeclaration(structObject *);
+    QByteArray makeStructDeclaration(const structObject *);
+
+    QByteArray makeStructDeclaration(const QString &structName, const QString &structParent, const QList<baseFieldObject *> &structFields, bool mainStruct);
+    QString makeStructFieldDeclaration(const QString &fieldType, const QString &fieldName);
+
     void createHeaderFile(const QString &fileName);
     void createSourceFile(const QString &fileName);
+
+    QByteArray createFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType, const QString &fieldName, const QString &fieldFormat, const QString &fieldScale);
 
     QByteArray createLoadFromHashFunction();
     QByteArray createToHashFunction();

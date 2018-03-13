@@ -1,6 +1,6 @@
 #include "protocolstructbuilder.h"
 
-QString instertTab(const int &count){
+QString insertTab(const int &count){
 //    int spaceCount = QSettings::value("tab_space_count",2).toInt();
     QString resultTabSpacing = "";
     for (int i=0;i<count;i++)
@@ -266,7 +266,7 @@ void ProtocolStructBuilder::loadXmlData()
     }
 }
 
-QByteArray ProtocolStructBuilder::makeStructDeclaration(structObject * sObj)
+QByteArray ProtocolStructBuilder::makeStructDeclaration(const structObject * sObj)
 {
     QByteArray result;
 
@@ -281,30 +281,7 @@ QByteArray ProtocolStructBuilder::makeStructDeclaration(structObject * sObj)
         case _objectType::SIMPLE:{
             fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
             if (fObj){
-                if (fObj->_fieldType == "int"){
-                    hStream << instertTab(1) << "int " << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "string"){
-                    hStream << instertTab(1) << "QString " << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "datetime"){
-                    hStream << instertTab(1) << "QDateTime " << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "date"){
-                    hStream << instertTab(1) << "QDate" << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "time"){
-                    hStream << instertTab(1) << "QTime " << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "double"){
-                    hStream << instertTab(1) << "double " << fObj->_fieldName << ";" << "\n";
-                }
-                else if (fObj->_fieldType == "bool"){
-                    hStream << instertTab(1) << "bool " << fObj->_fieldName << ";" << "\n";
-                }
-                else{
-                    hStream << instertTab(1) << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
-                }
+                hStream << makeStructFieldDeclaration(fObj->_fieldType,fObj->_fieldName);
             }
             break;
         }
@@ -313,6 +290,102 @@ QByteArray ProtocolStructBuilder::makeStructDeclaration(structObject * sObj)
         }
     }
     hStream << "};" << "\n\n";
+    return result;
+}
+
+QByteArray ProtocolStructBuilder::makeStructDeclaration(const QString &structName, const QString &structParent, const QList<baseFieldObject *> &structFields, bool mainStruct = false)
+{
+    QByteArray result;
+    QTextStream tStream (&result, QIODevice::WriteOnly);
+    tStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    QByteArray prevDeclaration;
+
+    tStream << "struct " << structName;
+    tStream << QString(structParent.isEmpty() ? "" : QString(": public %1").arg(structParent));
+    tStream << " {\n\n";
+    for (auto * sFieled : structFields){
+        switch (sFieled->getObjectType()) {
+        case _objectType::SIMPLE:{
+            fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
+            if (fObj){
+                tStream << makeStructFieldDeclaration(fObj->_fieldType,fObj->_fieldName);
+            break;
+            }
+        }
+        case _objectType::STRUCT:{
+            structObject * sObj = dynamic_cast<structObject *>(sFieled);
+            if (sObj){
+                tStream << insertTab(1) << sObj->_objectNameAsType << " " << sObj->_fieldNameAsField << ";" << "\n";
+                prevDeclaration.append(makeStructDeclaration(sObj->_objectNameAsType,QString(),sObj->_structFields,false));
+            }
+            break;
+        }
+        case _objectType::CONTAINER:{
+            containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
+            if (cObj){
+                tStream << insertTab(1);
+                switch (cObj->_containerType) {
+                case containerType::typeList:{
+                    tStream << "QList<" << cObj->_exContainerName << "> " << cObj->_containerAsFieldName;
+                    break;
+                }
+                }
+                tStream << ";" << "\n";
+                if (!cObj->_inlineData.isEmpty()){
+                    for (auto * sFieled : cObj->_inlineData){
+                        if (sFieled->getObjectType() == STRUCT){
+                            structObject * sObj = dynamic_cast<structObject *>(sFieled);
+                            if (sObj){
+                                prevDeclaration.append(makeStructDeclaration(sObj->_objectNameAsType,QString(),sObj->_structFields,false));
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+        }
+    }
+    if (mainStruct){
+        tStream << "\n";
+        tStream << insertTab(1) << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
+        tStream << insertTab(1) << "QVariantHash toVariantHash() const;" << "\n";
+        tStream << insertTab(1) << "bool isValid() const;" << "\n";
+    }
+    tStream << "};" << "\n" << "\n";
+    tStream.flush();
+    result.insert(0,prevDeclaration);
+    return result;
+}
+
+QString ProtocolStructBuilder::makeStructFieldDeclaration(const QString &fieldType, const QString &fieldName)
+{
+    QString result;
+    if (fieldType == "int"){
+        result = insertTab(1) + "int " + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "string"){
+        result = insertTab(1) + "QString " + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "datetime"){
+        result = insertTab(1) + "QDateTime " + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "date"){
+        result = insertTab(1) + "QDate" + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "time"){
+        result = insertTab(1) + "QTime " + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "double"){
+        result = insertTab(1) + "double " + fieldName + ";" + "\n";
+    }
+    else if (fieldType == "bool"){
+        result = insertTab(1) + "bool " + fieldName + ";" + "\n";
+    }
+    else{
+        result = insertTab(1) + fieldType + " " + fieldName + ";" + "\n";
+    }
     return result;
 }
 
@@ -334,9 +407,11 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
     hStream << "#define " << outputFileName.toUpper() << "_H" << "\n" << "\n";
     hStream << "#include \"meteoData_protorype.h\"" << "\n" << "\n";
 
-    QByteArray externalStructDeclaration;
+//    QByteArray externalStructDeclaration;
 
     for (auto &pStruct: _protocolData){
+        hStream << makeStructDeclaration(pStruct._structName,pStruct._structParent,pStruct._structFields,true);
+        /*
         tStream << "struct " << pStruct._structName;
         tStream << QString(pStruct._structParent.isEmpty() ? "" : QString(": public %1").arg(pStruct._structParent));
         tStream << " {\n\n";
@@ -345,37 +420,14 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    if (fObj->_fieldType == "int"){
-                        hStream << instertTab(1) << "int " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "string"){
-                        hStream << instertTab(1) << "QString " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "datetime"){
-                        hStream << instertTab(1) << "QDateTime " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "date"){
-                        hStream << instertTab(1) << "QDate" << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "time"){
-                        hStream << instertTab(1) << "QTime " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "double"){
-                        hStream << instertTab(1) << "double " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else if (fObj->_fieldType == "bool"){
-                        hStream << instertTab(1) << "bool " << fObj->_fieldName << ";" << "\n";
-                    }
-                    else{
-                        hStream << instertTab(1) << fObj->_fieldType << " " << fObj->_fieldName << ";" << "\n";
-                    }
+                    tStream << makeStructFieldDeclaration(fObj->_fieldType,fObj->_fieldName);
                 break;
-            }
+                }
             }
             case _objectType::STRUCT:{
                 structObject * sObj = dynamic_cast<structObject *>(sFieled);
                 if (sObj){
-                    hStream << instertTab(1) << sObj->_objectNameAsType << " " << sObj->_fieldNameAsField << ";" << "\n";
+                    tStream << instertTab(1) << sObj->_objectNameAsType << " " << sObj->_fieldNameAsField << ";" << "\n";
                     externalStructDeclaration.append(makeStructDeclaration(sObj));
                 }
                 break;
@@ -383,7 +435,7 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
             case _objectType::CONTAINER:{
                 containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
                 if (cObj){
-                    hStream << instertTab(1);
+                    tStream << instertTab(1);
                     switch (cObj->_containerType) {
                     case containerType::typeList:{
                         tStream << "QList<" << cObj->_exContainerName << "> " << cObj->_containerAsFieldName;
@@ -402,18 +454,19 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
             }
             }
         }
-        hStream << "\n";
-        hStream << instertTab(1) << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
-        hStream << instertTab(1) << "QVariantHash toVariantHash() const;" << "\n";
-        hStream << instertTab(1) << "bool isValid() const;" << "\n";
-        hStream << "};" << "\n" << "\n";
+        tStream << "\n";
+        tStream << instertTab(1) << "bool loadFromVariantHash(QVariantHash &hash);" << "\n";
+        tStream << instertTab(1) << "QVariantHash toVariantHash() const;" << "\n";
+        tStream << instertTab(1) << "bool isValid() const;" << "\n";
+        tStream << "};" << "\n" << "\n";
         tStream.flush();
+        */
     }
 
-    hStream << externalStructDeclaration;
-    hStream << mainData;
+//    hStream << externalStructDeclaration;
+//    hStream << mainData;
 
-    hStream << "#endif" << "\n";
+    hStream << "#endif" << insertTab(1) << "// " << outputFileName.toUpper() << "_H" << "\n";
 
     fHeader->close();
     delete fHeader;
@@ -439,6 +492,61 @@ void ProtocolStructBuilder::createSourceFile(const QString &fileName)
     delete fSource;
 }
 
+QByteArray ProtocolStructBuilder::createFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType, const QString &fieldName, const QString &fieldFormat, const QString &fieldScale)
+{
+    QByteArray result;
+
+    QTextStream sStream (&result, QIODevice::WriteOnly);
+    sStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    sStream << insertTab(1) << "if (hash.keys().contains(\"" << hashKey << "\")){\n";
+    sStream << insertTab(2) << "QVariantHash valuesHash = hash.value(\"" << hashKey << "\").toHash();\n";
+    sStream << insertTab(2) << "if (valuesHash.keys().contains(\"" << internalHashKey << "\")){\n";
+    sStream << insertTab(3) << fieldName << " = ";
+    if (fieldType == "int"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toInt()";
+        if (!fieldScale.isEmpty())
+            sStream << " * "<< fieldScale;
+    }
+    else if (fieldType == "string"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toString()";
+    }
+    else if (fieldType == "datetime"){
+        sStream << "QDateTime::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "date"){
+        sStream << "QDate::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "time"){
+        sStream << "QTime::fromString(valueHash.value(\"" << internalHashKey << "\").toString(), \"" << fieldFormat << "\")";
+    }
+    else if (fieldType == "double"){
+        sStream << "valueHash.value(\"" << internalHashKey << "\").toDouble()";
+        if (!fieldScale.isEmpty())
+            sStream << " * "<< fieldScale;
+    }
+    else if (fieldType == "bool"){
+        sStream << "valuesHash.keys().contains(\"" << internalHashKey << "\")";
+    }
+    else{
+        sStream << "NULL";
+    }
+    sStream << ";\n";
+    sStream << insertTab(2) << "}\n";
+    if (fieldType == "int" || fieldType == "double"){
+        sStream << insertTab(2) << "else" << "\n";
+        sStream << insertTab(3) << fieldName << " = -100;" << "\n";
+    }
+    sStream << insertTab(1) << "}\n";
+    if (fieldType == "int" || fieldType == "double"){
+        sStream << insertTab(1) << "else" << "\n";
+        sStream << insertTab(2) << fieldName << " = -100;" << "\n";
+    }
+    sStream << "\n";
+
+    return result;
+}
+
 QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
 {
     QByteArray result;
@@ -453,50 +561,7 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    sStream << instertTab(1) << "if (hash.keys().contains(\"" << fObj->_hashKey << "\")){\n";
-                    sStream << instertTab(2) << "QVariantHash valuesHash = hash.value(\"" << fObj->_hashKey << "\").toHash();\n";
-                    sStream << instertTab(2) << "if (valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")){\n";
-                    sStream << instertTab(3) << fObj->_fieldName << " = ";
-                    if (fObj->_fieldType == "int"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toInt()";
-                        if (!fObj->_fieldScale.isEmpty())
-                            sStream << " * "<< fObj->_fieldScale;
-                    }
-                    else if (fObj->_fieldType == "string"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toString()";
-                    }
-                    else if (fObj->_fieldType == "datetime"){
-                        sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "date"){
-                        sStream << "QDate::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "time"){
-                        sStream << "QTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                    }
-                    else if (fObj->_fieldType == "double"){
-                        sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toDouble()";
-                        if (!fObj->_fieldScale.isEmpty())
-                            sStream << " * "<< fObj->_fieldScale;
-                    }
-                    else if (fObj->_fieldType == "bool"){
-                        sStream << "valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")";
-                    }
-                    else{
-                        sStream << "NULL";
-                    }
-                    sStream << ";\n";
-                    sStream << instertTab(2) << "}\n";
-                    if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                        sStream << instertTab(2) << "else" << "\n";
-                        sStream << instertTab(3) << fObj->_fieldName << " = -100;" << "\n";
-                    }
-                    sStream << instertTab(1) << "}\n";
-                    if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                        sStream << instertTab(1) << "else" << "\n";
-                        sStream << instertTab(2) << fObj->_fieldName << " = -100;" << "\n";
-                    }
-                    sStream << "\n";
+                    sStream << createFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
                 }
                 break;
             }
@@ -506,50 +571,7 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
                     for (auto * fieldObj : sObj->_structFields ){
                         fieldObject * fObj = dynamic_cast<fieldObject *>(fieldObj);
                         if (fObj){
-                            sStream << instertTab(1) << "if (hash.keys().contains(\"" << fObj->_hashKey << "\")){\n";
-                            sStream << instertTab(2) << "QVariantHash valuesHash = hash.value(\"" << fObj->_hashKey << "\").toHash();\n";
-                            sStream << instertTab(2) << "if (valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")){\n";
-                            sStream << instertTab(3) << sObj->_fieldNameAsField << "." << fObj->_fieldName << " = ";
-                            if (fObj->_fieldType == "int"){
-                                sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toInt()";
-                                if (!fObj->_fieldScale.isEmpty())
-                                    sStream << " * "<< fObj->_fieldScale;
-                            }
-                            else if (fObj->_fieldType == "string"){
-                                sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toString()";
-                            }
-                            else if (fObj->_fieldType == "datetime"){
-                                sStream << "QDateTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                            }
-                            else if (fObj->_fieldType == "date"){
-                                sStream << "QDate::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                            }
-                            else if (fObj->_fieldType == "time"){
-                                sStream << "QTime::fromString(valueHash.value(\"" << fObj->_resultHashListKey << "\").toString(), \"" << fObj->_fieldFormat << "\")";
-                            }
-                            else if (fObj->_fieldType == "double"){
-                                sStream << "valueHash.value(\"" << fObj->_resultHashListKey << "\").toDouble()";
-                                if (!fObj->_fieldScale.isEmpty())
-                                    sStream << " * "<< fObj->_fieldScale;
-                            }
-                            else if (fObj->_fieldType == "bool"){
-                                sStream << "valuesHash.keys().contains(\"" << fObj->_resultHashListKey << "\")";
-                            }
-                            else{
-                                sStream << "NULL";
-                            }
-                            sStream << ";\n";
-                            sStream << instertTab(2) << "}\n";
-                            if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                                sStream << instertTab(2) << "else" << "\n";
-                                sStream << instertTab(3) << fObj->_fieldName << " = -100;" << "\n";
-                            }
-                            sStream << instertTab(1) << "}\n";
-                            if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                                sStream << instertTab(1) << "else" << "\n";
-                                sStream << instertTab(2) << fObj->_fieldName << " = -100;" << "\n";
-                            }
-                            sStream << "\n";
+                            sStream << createFieldAssignment(fObj->_hashKey,fObj->_resultHashListKey,fObj->_fieldType,sObj->_fieldNameAsField + "." + fObj->_fieldName,fObj->_fieldFormat,fObj->_fieldScale);
                         }
                     }
                 }
@@ -579,19 +601,19 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
 
     for (auto &pStruct: _protocolData){
         sStream << "QVariantHash " << pStruct._structName << "::toVariantHash() const{\n";
-        sStream << instertTab(1) << "QVariantHash result;" << "\n";
-        sStream << instertTab(1) << "QVaraintHash valueHash;\n";
+        sStream << insertTab(1) << "QVariantHash result;" << "\n";
+        sStream << insertTab(1) << "QVaraintHash valueHash;\n";
         sStream << "\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:{
                 fieldObject * fObj = dynamic_cast<fieldObject *>(sFieled);
                 if (fObj){
-                    sStream << instertTab(1) << "if (result.keys().contains(\"" << fObj->_hashKey << "\")" << "\n";
-                    sStream << instertTab(2) << "valueHash = result.take(\"" << fObj->_hashKey << "\").toHash();" << "\n";
-                    sStream << instertTab(1) << "valueHash[\"" << fObj->_resultHashListKey << "\"] = " << fObj->_fieldName << ";\n";
-                    sStream << instertTab(1) << "result[\"" << fObj->_hashKey << "\"] = valueHash;\n";
-                    sStream << instertTab(1) << "valueHash.clear();\n";
+                    sStream << insertTab(1) << "if (result.keys().contains(\"" << fObj->_hashKey << "\")" << "\n";
+                    sStream << insertTab(2) << "valueHash = result.take(\"" << fObj->_hashKey << "\").toHash();" << "\n";
+                    sStream << insertTab(1) << "valueHash[\"" << fObj->_resultHashListKey << "\"] = " << fObj->_fieldName << ";\n";
+                    sStream << insertTab(1) << "result[\"" << fObj->_hashKey << "\"] = valueHash;\n";
+                    sStream << insertTab(1) << "valueHash.clear();\n";
                     sStream << "\n";
                 }
                 break;
@@ -614,7 +636,7 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
             }
             }
         }
-        sStream << instertTab(1) << "return result;" << "\n";
+        sStream << insertTab(1) << "return result;" << "\n";
         sStream << "}" << "\n" << "\n";
     }
     return result;
@@ -637,25 +659,25 @@ QByteArray ProtocolStructBuilder::createIsValidFunction()
                 if (fObj){
                     if (fObj->required){
                         if (fObj->_fieldType == "int" || fObj->_fieldType == "double"){
-                            sStream << instertTab(1)<< "if (" << fObj->_fieldName << " == -100) reslut = false;\n";
+                            sStream << insertTab(1)<< "if (" << fObj->_fieldName << " == -100) reslut = false;\n";
                         }
                         else if (fObj->_fieldType == "string"){
-                            sStream << instertTab(1) << "if (" << fObj->_fieldName << ".isEmpty()) reslut = false;\n";
+                            sStream << insertTab(1) << "if (" << fObj->_fieldName << ".isEmpty()) reslut = false;\n";
                         }
                         else if (fObj->_fieldType == "datetime"){
-                            sStream << instertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
+                            sStream << insertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
                         }
                         else if (fObj->_fieldType == "date"){
-                            sStream << instertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
+                            sStream << insertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
                         }
                         else if (fObj->_fieldType == "time"){
-                            sStream << instertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
+                            sStream << insertTab(1) << "if (" << fObj->_fieldName << ".isValid()) reslut = false;\n";
                         }
                         else if (fObj->_fieldType == "bool"){
-                            sStream << instertTab(1) << "if (!" << fObj->_fieldName << ") reslut = false;\n";
+                            sStream << insertTab(1) << "if (!" << fObj->_fieldName << ") reslut = false;\n";
                         }
                         else{
-                            sStream << instertTab(1) << "//NULL" << fObj->_fieldName << "\n";
+                            sStream << insertTab(1) << "//NULL" << fObj->_fieldName << "\n";
                         }
                     }
                 }
@@ -679,7 +701,7 @@ QByteArray ProtocolStructBuilder::createIsValidFunction()
             }
             }
         }
-        sStream << instertTab(1) << "return result;\n";
+        sStream << insertTab(1) << "return result;\n";
         sStream << "}" << "\n" << "\n";
     }
 
