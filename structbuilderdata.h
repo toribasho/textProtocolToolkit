@@ -25,8 +25,6 @@ struct fieldObject: public baseFieldObject{
     QString _fieldFormat;
     QString _fieldScale;
     bool    required;
-    bool    multiValue;
-    QString concat_str;
 
     QString _hashKey;                           // key for state hash
     QString _resultHashListKey;                 // key for value hash from state hash
