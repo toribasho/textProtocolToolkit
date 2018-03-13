@@ -30,6 +30,8 @@ class ProtocolStructBuilder
                                              const QString &structType, const QString &structName, const QString &containerName,
                                              bool createStruct = false, bool storeToContainer = false);
 
+    QByteArray makeFieldToHashAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldName);
+
     QString makeFieldValidation(const QString &fieldType, const QString &fieldName);
 
     void createHeaderFile(const QString &fileName);
