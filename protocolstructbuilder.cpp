@@ -273,7 +273,8 @@ void ProtocolStructBuilder::loadXmlData()
     }
 }
 
-QByteArray ProtocolStructBuilder::makeStructDeclaration(const QString &structName, const QString &structParent, const QList<baseFieldObject *> &structFields, bool mainStruct = false)
+QByteArray ProtocolStructBuilder::makeStructDeclaration(const QString &structName, const QString &structParent,
+                                                        const QList<baseFieldObject *> &structFields, bool mainStruct = false)
 {
     QByteArray result;
     QTextStream tStream (&result, QIODevice::WriteOnly);
@@ -416,7 +417,8 @@ void ProtocolStructBuilder::createSourceFile(const QString &fileName)
     delete fSource;
 }
 
-QByteArray ProtocolStructBuilder::makeFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType, const QString &fieldName, const QString &fieldFormat, const QString &fieldScale)
+QByteArray ProtocolStructBuilder::makeFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType,
+                                                      const QString &fieldName, const QString &fieldFormat, const QString &fieldScale)
 {
     QByteArray result;
 
