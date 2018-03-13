@@ -15,17 +15,21 @@ class ProtocolStructBuilder
     QHash<QString, QList<fieldDbData> > _db_data;
     QString                             _ruleFile;
 
-    void loadXmlData();
+    void loadXmlData(); //NEED REFACTORING
 
-    QByteArray makeStructDeclaration(const structObject *);
+    QByteArray makeStructDeclaration(const QString &structName, const QString &structParent,
+                                     const QList<baseFieldObject *> &structFields, bool mainStruct);
 
-    QByteArray makeStructDeclaration(const QString &structName, const QString &structParent, const QList<baseFieldObject *> &structFields, bool mainStruct);
     QString makeStructFieldDeclaration(const QString &fieldType, const QString &fieldName);
+
+    QByteArray makeFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType,
+                                   const QString &fieldName, const QString &fieldFormat, const QString &fieldScale);
+
+    QString makeFieldValidation(const QString &fieldType, const QString &fieldName);
 
     void createHeaderFile(const QString &fileName);
     void createSourceFile(const QString &fileName);
 
-    QByteArray createFieldAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldType, const QString &fieldName, const QString &fieldFormat, const QString &fieldScale);
 
     QByteArray createLoadFromHashFunction();
     QByteArray createToHashFunction();
