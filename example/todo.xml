@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<universalDecoder>
+<!-- ######################################################################################### -->            
+<!-- ######################################################################################### -->        
+<!-- ####################################### TEST ############################################ -->    
+<!-- ######################################################################################### -->        
+<!-- ######################################################################################### -->            
+    <protocol type="2" name="TEST" struct="A_STRUCT" parent="A_STRUCT_PROTOTYPE">
+        <!-- SIMPLE FIELD -->
+        <!-- Поиск поля со значением -->
+        <state name="A" pattern="x1-x2-x3" field="A_FIELD" required="false" next="B">   
+            <!-- Поиск 1го значения в поле -->
+            <value pattern="x1-" del="-" field="A1">                                    
+                <!-- Описание поля для хранения значения в структурке. Тип string внутреннее имя - A1 -->
+                <data structFieldType="string" structFieldName="A1"/>                   
+                <!-- Описание поля для хранения значения в БД -->
+                <db dbfield="DB_A1"/>                                                   
+            </value>
+            <!-- Поиск 2го значения в поле -->
+            <value pattern="x2-" del="x2" minimalCap="false" field="A2">                
+                <data structFieldType="string" structFieldName="A2"/>
+                <db dbfield="A2"/>
+            </value>
+            <value pattern="x3" minimalCap="false" field="A3">
+                <!-- Описание поля для хранения значения в структурке. Тип datetime внутреннее имя - A3. Входящий формат времени в строке - yyMMddhhmm  -->
+                <data structType="datetime" format="yyMMddhhmm" structName="A3"/>       
+                <db dbfield="A3"/>
+            </value>
+        </state>        
+        <!-- COMPLEX FIELD -->
+        <!-- Поиск поля со значением. Поле может стречаться более одного раза. В данном случае ориентируемся по заголовку поля -->
+        <state name="B" pattern="XXX" field="B_FIELD" required="false" repeated="true" concat="\n" next="FINFIN">   
+            <!-- Поиск значения в поле -->
+            <value pattern="XXX" minimalCap="false" field="B1">                                                     
+                <!-- Описание поля для хранения значения в структурке. Поле содержит несолько значений из разных блоков. Обьединение символом " " -->
+                <data structFieldType="string" structFieldName="B_JOINED" multiValue="true" concat=" "/>            
+                <!-- Описание контейнера для хранения значения.  -->
+                <container containerType="List" objectType="B1_Item" objectFieldName="Items" create="true">         
+                    <!-- Описание внутренней структуры. С указанием создания экземпляра -->
+                    <structdata objectType="B1_Item">                                   
+                        <!-- Описанние поля хранения значения. -->
+                        <data structFieldType="string" structFieldName="B_A"/>                                     
+                    </structdata>                                                                                   
+                </container>                                                                                       
+                <!-- Описание поля для хранения значения в БД. В данном случае подполе содержит два хранимых значения - явно указываем какое хранить. -->
+                <db dbfield="B1" value="B_JOINED"/>                                                                 
+            </value>
+            <value pattern="YYY" minimalCap="false" field="B2">
+                <data structFieldType="string" structFieldName="B_JOINED" multiValue="true" concat=" "/>
+                <container containerType="List" objectType="B1_Item" objectFieldName="Items" >
+                    <structdata objectType="B1_Item" objectFieldName="item">
+                        <data structFieldType="string" structFieldName="B_B"/>
+                    </structdata>
+                </container>                
+            </value>
+        </state>        
+    </protocol>
+</universalDecoder>
+
+На выходе имеем:
+
+strct B1_Item{
+    QString B_A;
+    QString B_B;
+}
+struct A_STRUCT : public A_STRUCT_PROTOTYPE{
+    QString A1;
+    QString A2;
+    QDateTime A3;
+    QList<B1_Item> Items;
+
+
+}
