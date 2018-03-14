@@ -118,6 +118,7 @@ void ProtocolStructBuilder::loadXmlData()
                                     if (sl.first().contains("list",Qt::CaseInsensitive))
                                         cObj->_containerType = typeList;
                                     cObj->_objectNameAsType = curContainterName;
+                                    cObj->_containerHashKey = curStateName;
 
                                     containtersInState[curContainterName] = cObj;
                                     builder->_structFields.append(cObj);
@@ -486,13 +487,12 @@ QByteArray ProtocolStructBuilder::makeStructListFieldAssignment(const QString &h
     sStream.setCodec(QTextCodec::codecForName("UTF-8"));
 
     if (createStruct){
-        sStream << insertTab(1) << "if (hash.keys().contains(\"" << hashKey << "\")){\n";
-        sStream << insertTab(2) << structType << " " << structName << ";\n";
+        sStream << insertTab(2) << "if (hash.keys().contains(\"" << hashKey << "\"+keyModificator)){\n";
+        sStream << insertTab(3) << structType << " " << structName << ";\n";
+        sStream << insertTab(3) << "QVariantHash valuesHash = hash.value(\"" << hashKey << "\"+keyModificator).toHash();\n";
     }
-    sStream << insertTab(2) << "QVariantHash valuesHash = hash.value(\"" << hashKey << "\").toHash();\n";
-    sStream << insertTab(2) << "if (valuesHash.keys().contains(\"" << internalHashKey << "\")){\n";
-
-    sStream << insertTab(3) << fieldName << " = ";
+    sStream << insertTab(3) << "if (valuesHash.keys().contains(\"" << internalHashKey << "\")){\n";
+    sStream << insertTab(4) << fieldName << " = ";
 
     if (fieldType == "int"){
         sStream << "valueHash.value(\"" << internalHashKey << "\").toInt()";
@@ -523,16 +523,15 @@ QByteArray ProtocolStructBuilder::makeStructListFieldAssignment(const QString &h
         sStream << "NULL";
     }
     sStream << ";\n";
-    sStream << insertTab(2) << "}\n";
+    sStream << insertTab(3) << "}\n";
     if (fieldType == "int" || fieldType == "double"){
-        sStream << insertTab(2) << "else" << "\n";
-        sStream << insertTab(3) << fieldName << " = -100;" << "\n";
+        sStream << insertTab(3) << "else" << "\n";
+        sStream << insertTab(4) << fieldName << " = -100;" << "\n";
     }
 
     if (storeToContainer){
-        sStream << insertTab(2) << containerName << " << " << structName << ";\n";
-        sStream << insertTab(1) << "}\n";
-        sStream << "\n";
+        sStream << insertTab(3) << containerName << " << " << structName << ";\n";
+        sStream << insertTab(2) << "}\n";
     }
 
     return result;
@@ -600,11 +599,16 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
             }
             case _objectType::CONTAINER:{
                 containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
+                sStream << insertTab(1) << "int i = 1;" << "\n";
+                sStream << insertTab(1) << "while (true){" << "\n";
+                sStream << insertTab(2) << "QString keyModificator = \"\";" << "\n";
+                sStream << insertTab(2) << "if (i != 1) keyModificator = QString(\"_%1\").arg(i);" << "\n";
+                sStream << insertTab(2) << "i++;" << "\n";
                 if (cObj){
                     if (!cObj->_inlineData.isEmpty()){
                         for (auto * sFieled : cObj->_inlineData){
                             if (sFieled->getObjectType() == STRUCT){
-                                // TODO: CREATE OBJCET -> FILL OBJECT (x) -> STORE OBJECT
+                                // TODO: CREATE OBJCET -> FILL OBJECT (x) -> STORE OBJECT                                
                                 structObject * sObj = dynamic_cast<structObject *>(sFieled);
                                 if (sObj){
                                     int i = 1;
@@ -628,6 +632,8 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
                         }
                     }
                 }
+                sStream << insertTab(2) << "else break;" << "\n";
+                sStream << insertTab(1) << "}" << "\n";
                 break;
             }
             }
