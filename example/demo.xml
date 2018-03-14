@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <universalDecoder>
-<!-- ######################################################################################### -->            
-<!-- ######################################################################################### -->        
-<!-- ###################################### METAR ############################################ -->    
-<!-- ######################################################################################### -->        
-<!-- ######################################################################################### -->            
+<!-- ######################################################################################### -->
+<!-- ######################################################################################### -->
+<!-- ###################################### METAR ############################################ -->
+<!-- ######################################################################################### -->
+<!-- ######################################################################################### -->
     <meteo type="2" name="METAR" struct="MetarMeteoStruct" parent="MetarMeteoPrototype">
         <state name="fLine" pattern="^ZCZC(\r\n|\r|\n)\d{2}\s\d{4}(\r\n|\r|\n)" field="METAR_F_LINE_TRASH" required="false" next="fLine2"/>
         <state name="fLine2" pattern="TYPE:(METAR|SPECI).+(\r\n|\r|\n)" field="METAR_F_LINE3_TRASH" required="false" next="fLine3"/>
@@ -30,7 +30,7 @@
                 <data structType="datetime" format="ddhhmm" structName="DT"/>
                 <db dbfield="DT"/>
             </value>
-        </state>        
+        </state>
         <state name="m_Auto" pattern="AUTO" field="METAR_IS_AUTO" required="false" next="m_Empty">
             <value pattern="^AUTO" field="IS_AUTO"/>
         </state>
@@ -138,50 +138,50 @@
             <value pattern="^R\d{2}(R|L|C)?\/" del="\/$" field="VPPSTATE_RWY">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="string" structName="rwy"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^(\/|\d)" replace="/|0" field="VPPSTATE_SCURF">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="int" structName="scurf"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^(\/|\d)" replace="/|0" field="VPPSTATE_POLLUTION">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="int" structName="pollution"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^(\/{2}|\d{2})" replace="//|0" field="VPPSTATE_SCURF_HEIGHT">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="int" structName="scurfHeight"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^(\/{2}|\d{2})" replace="//|0" field="VPPSTATE_CLUTCH">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="int" structName="clutch"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^CLRD\/{2}" field="VPPSTATE_CLRD">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="bool" structName="rwyCleared"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true" concat="|"/>
             </value>
             <value pattern="^R\/SNOCLO" field="VPPSTATE">
                 <structdata structType="rwyStateStruct" structName="rwyState">
                     <data structType="bool" structName="rwySNOCLO"/>
-                </structdata>                
+                </structdata>
                 <db dbfield="RUNWAY_STATE" multiValue="true"/>
             </value>
         </state>
         <state name="m_trend" pattern="(NOSIG|BECMG|TEMPO)" field="METAR_TREND" required="false" repeated="true" concat="\n" next="m_fin">
             <key pattern="=(\r|\n|\r\n)"/>
             <value pattern="^(NOSIG|BECMG|TEMPO)\s?=?" del="\s=?" minimalCap="false" field="TREND">
-                <data structType="string" structName="joinedTrend" multiValue="true" concat=" "/>
+                <data structType="string" structName="joinedTrend" multiValue="true" concat="|"/>
                 <listdata structType="List Trend" structName="trends" create="true">
                     <structdata structType="Trend" structName="trend">
                         <data structType="string" structName="trend"/>
@@ -195,7 +195,7 @@
                     <structdata structType="Trend" structName="trend">
                         <data structType="string" structName="trendStart"/>
                     </structdata>
-                </listdata>                
+                </listdata>
             </value>
             <value pattern="^(FM|TL|AT)?\d{4}\s?" del="\s" minimalCap="false" field="TREND_PERIOD_END">
                 <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
@@ -203,7 +203,7 @@
                     <structdata structType="Trend" structName="trend">
                         <data structType="string" structName="trendEnd"/>
                     </structdata>
-                </listdata>                                
+                </listdata>
             </value>
             <value pattern="^(\d{3}|VRB)P?\d{2,3}(GP?\d{2,3})?">
                 <subvalue pattern="^(\d{3}|VRB)" field="TREND_WINDDIR">
@@ -212,7 +212,7 @@
                         <structdata structType="Trend" structName="trend">
                             <data structType="string" structName="windDirection"/>
                         </structdata>
-                    </listdata>                                
+                    </listdata>
                 </subvalue>
                 <subvalue pattern="P?\d{2,3}" replace="P|+" field="TREND_WINDSPD">
                     <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
@@ -220,24 +220,24 @@
                         <structdata structType="Trend" structName="trend">
                             <data structType="int" structName="windSpeed"/>
                         </structdata>
-                    </listdata>                                
+                    </listdata>
                 </subvalue>
                 <subvalue pattern="^GP?\d{2,3}" del="G" replace="P|+" field="TREND_WINDGUST">
                     <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
                     <listdata structType="List Trend" structName="trends" >
                         <structdata structType="Trend" structName="trend">
-                            <data structType="int" structName="windDirection"/>
+                            <data structType="int" structName="windGust"/>
                         </structdata>
-                    </listdata>                                
-                </subvalue>                                
+                    </listdata>
+                </subvalue>
                 <subvalue pattern="^(MPS|KT)\s?" field="TREND_WINDMES">
                     <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
                     <listdata structType="List Trend" structName="trends" >
                         <structdata structType="Trend" structName="trend">
                             <data structType="string" structName="windMeasure"/>
                         </structdata>
-                    </listdata>                                
-                </subvalue>                                                
+                    </listdata>
+                </subvalue>
             </value>
             <value pattern="^(\d{4}|CAVOK)\s?" del="\s" replace="CAVOK|9999" minimalCap="false" field="TREND_VISIBILITY">
                 <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
@@ -245,7 +245,7 @@
                     <structdata structType="Trend" structName="trend">
                         <data structType="int" structName="visibility"/>
                     </structdata>
-                </listdata>                                                
+                </listdata>
             </value>
             <value pattern="^(/+|-)?(DZ|RA|SN|SG|PL|DS|SS|FZDZ|FZRA|SHGR|SHGS|SHRA|SHSN|TSGR|TSGS|TSRA|TSSN|IC|FG|BR|SA|DU|HZ|FU|VA|SQ|PO|FC|TS|BCFG|BLDU|BLSA|BLSN|DRDU|DRSA|DRSN|FZFG|MIFG|PRFG|NSW)\s?" del="\s" minimalCap="false" repeated="true" concat=" " field="TREND_WEATHER">
                 <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
@@ -253,7 +253,7 @@
                     <structdata structType="Trend" structName="trend">
                         <data structType="string" structName="weather"/>
                     </structdata>
-                </listdata>                                                
+                </listdata>
             </value>
             <value pattern="^(SCT|FEW|BKN|OVC)(\d{3}|\/\/\/)(\sVV(\d{3}|\/\/\/))?(\sNSC)?\s?(CB|TCU)?\s?" del="\s$" minimalCap="false" repeated="true" concat=" " field="TREND_CLOUD">
                 <data structType="string" structName="joinedTrend" multiValue="true" concat=" " />
@@ -261,9 +261,9 @@
                     <structdata structType="Trend" structName="trend">
                         <data structType="string" structName="clouds"/>
                     </structdata>
-                </listdata>                                                
+                </listdata>
             </value>
         </state>
-        <state name="m_fin" pattern="NNNN(\n|\r)?" field="METAR_С_FIN" required="false" next="FINFIN"/>        
-    </meteo>    
+        <state name="m_fin" pattern="NNNN(\n|\r)?" field="METAR_С_FIN" required="false" next="FINFIN"/>
+    </meteo>
 <universalDecoder>
