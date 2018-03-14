@@ -51,7 +51,8 @@ struct containerObject: public baseFieldObject, public complexObject{
 
     virtual _objectType getObjectType(){return CONTAINER;}
 
-    containerType _containerType;               // enum?
+    containerType   _containerType;               // enum?
+    QString         _containerHashKey;                           // key for state hash
 
     QList< baseFieldObject *> _inlineData;      // structData or fieldData. todo: fix
 };
