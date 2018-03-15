@@ -92,6 +92,14 @@ void ProtocolStructBuilder::loadXmlData()
                                 else
                                     fieldObj->required = false;
 
+                                if (attributes.hasAttribute("multiValue")){
+                                    fieldObj->isMultiValue = true;
+                                    fieldObj->_multiHashKeys.append(curValueName);
+                                    fieldObj->_concatStr = attributes.hasAttribute("concat") ? attributes.value("concat").toString() : " ";
+                                }
+                                else
+                                    fieldObj->isMultiValue = false;
+
                                 fieldObj->_fieldName = xml.attributes().value("structName").toString();
                                 fieldObj->_fieldType = xml.attributes().value("structType").toString();
 
@@ -134,6 +142,15 @@ void ProtocolStructBuilder::loadXmlData()
                                             fieldObj->required = attributes.value("reqired").toString() == "true";
                                         else
                                             fieldObj->required = false;
+
+                                        if (attributes.hasAttribute("multiValue")){
+                                            fieldObj->isMultiValue = true;
+                                            fieldObj->_multiHashKeys.append(curValueName);
+                                            fieldObj->_concatStr = attributes.hasAttribute("concat") ? attributes.value("concat").toString() : " ";
+                                        }
+                                        else
+                                            fieldObj->isMultiValue = false;
+
                                         fieldObj->_fieldName = xml.attributes().value("structName").toString();
                                         fieldObj->_fieldType = xml.attributes().value("structType").toString();
                                         if (xml.attributes().hasAttribute("format"))
@@ -165,6 +182,15 @@ void ProtocolStructBuilder::loadXmlData()
                                                     fieldObj->required = attributes.value("reqired").toString() == "true";
                                                 else
                                                     fieldObj->required = false;
+
+                                                if (attributes.hasAttribute("multiValue")){
+                                                    fieldObj->isMultiValue = true;
+                                                    fieldObj->_multiHashKeys.append(curValueName);
+                                                    fieldObj->_concatStr = attributes.hasAttribute("concat") ? attributes.value("concat").toString() : " ";
+                                                }
+                                                else
+                                                    fieldObj->isMultiValue = false;
+
                                                 fieldObj->_fieldName = xml.attributes().value("structName").toString();
                                                 fieldObj->_fieldType = xml.attributes().value("structType").toString();
                                                 if (xml.attributes().hasAttribute("format"))
@@ -204,6 +230,15 @@ void ProtocolStructBuilder::loadXmlData()
                                             fieldObj->required = attributes.value("reqired").toString() == "true";
                                         else
                                             fieldObj->required = false;
+
+                                        if (attributes.hasAttribute("multiValue")){
+                                            fieldObj->isMultiValue = true;
+                                            fieldObj->_multiHashKeys.append(curValueName);
+                                            fieldObj->_concatStr = attributes.hasAttribute("concat") ? attributes.value("concat").toString() : " ";
+                                        }
+                                        else
+                                            fieldObj->isMultiValue = false;
+
                                         fieldObj->_fieldName = xml.attributes().value("structName").toString();
                                         fieldObj->_fieldType = xml.attributes().value("structType").toString();
                                         if (xml.attributes().hasAttribute("format"))
