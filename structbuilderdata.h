@@ -16,7 +16,12 @@ struct fieldDbData{
     QString concat;
 };
 
-struct fieldObject: public baseFieldObject{
+struct multiObject{
+    QString     _concatStr;
+    QStringList _multiHashKeys;
+};
+
+struct fieldObject: public baseFieldObject, public multiObject{
 
     virtual _objectType getObjectType(){return SIMPLE;}
 
@@ -25,6 +30,7 @@ struct fieldObject: public baseFieldObject{
     QString _fieldFormat;
     QString _fieldScale;
     bool    required;
+    bool    isMultiValue;
 
     QString _hashKey;                           // key for state hash
     QString _resultHashListKey;                 // key for value hash from state hash
