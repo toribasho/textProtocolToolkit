@@ -592,6 +592,29 @@ QByteArray ProtocolStructBuilder::makeFieldToHashAssignment(const QString &hashK
     return result;
 }
 
+QByteArray ProtocolStructBuilder::makeStructListFieldToHashAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldName,
+                                                                      const QString &containerName, bool createLocalHash, bool storeToMainHash)
+{
+    QByteArray result;
+
+    QTextStream sStream (&result, QIODevice::WriteOnly);
+    sStream.setCodec(QTextCodec::codecForName("UTF-8"));
+
+    if (createLocalHash){
+        sStream << insertTab(2) << "{\n";
+        sStream << insertTab(3) << "QVariantHash valuesHash;\n";
+    }
+
+    sStream << insertTab(3) << "valuesHash[\"" << internalHashKey << "\"] = " << containerName << ".at(i)." << fieldName << ";\n";
+
+    if (storeToMainHash){
+        sStream << insertTab(3) << "result[\"" << hashKey << "\"+keyModificator] = valuesHash;\n";
+        sStream << insertTab(2) << "}\n";
+    }
+
+    return result;
+}
+
 QString ProtocolStructBuilder::makeFieldValidation(const QString &fieldType, const QString &fieldName)
 {
     QString result;
@@ -733,8 +756,34 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
             case _objectType::CONTAINER:{
                 containerObject * cObj = dynamic_cast<containerObject *>(sFieled);
                 if (cObj){
-                    continue;
-//                    TODO
+                    if (cObj->_containerType == typeList){
+
+                        sStream << insertTab(1) << "QString keyModificator = \"\";" << "\n";
+                        sStream << insertTab(1) << "for (int i = 0 ; i < " << cObj->_fieldNameAsField << ".count() ; i++){\n";
+                        sStream << insertTab(2) << "if (i != 0) keyModificator = QString(\"_%1\").arg(i+1);" << "\n";
+                        for (auto * sFieled : cObj->_inlineData){
+                            if (sFieled->getObjectType() == STRUCT){
+                                structObject * sObj = dynamic_cast<structObject *>(sFieled);
+                                if (sObj){
+                                    int i = 1;
+                                    bool createLocalHash = true;
+                                    bool store = false;
+                                    for (auto * fieldObj : sObj->_structFields ){
+                                        fieldObject * fObj = dynamic_cast<fieldObject *>(fieldObj);
+                                        if (fObj){
+                                            if (i > 1)
+                                                createLocalHash = false;
+                                            if (i++ == sObj->_structFields.count())
+                                                store = true;
+                                            sStream << makeStructListFieldToHashAssignment(fObj->_hashKey,fObj->_resultHashListKey,
+                                                                                           fObj->_fieldName, cObj->_fieldNameAsField,
+                                                                                           createLocalHash, store);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 break;
             }

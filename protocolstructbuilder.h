@@ -32,11 +32,13 @@ class ProtocolStructBuilder
 
     QByteArray makeFieldToHashAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldName);
 
+    QByteArray makeStructListFieldToHashAssignment(const QString &hashKey, const QString &internalHashKey, const QString &fieldName,
+                                                   const QString &containerName, bool createLocalHash = false, bool storeToMainHash = false);
+
     QString makeFieldValidation(const QString &fieldType, const QString &fieldName);
 
     void createHeaderFile(const QString &fileName);
     void createSourceFile(const QString &fileName);
-
 
     QByteArray createLoadFromHashFunction();
     QByteArray createToHashFunction();
