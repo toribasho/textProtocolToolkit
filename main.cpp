@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     if (ProtocolStructBuilder::validate("../example/demo.xml")){
         qDebug() << "Validation OK";
         ProtocolStructBuilder psb("../example/demo.xml");
-        psb.createStructs("demo");
+        psb.createStructs("../example/","meteodata");
     }
     else {
         qDebug() << "Error in syntax";

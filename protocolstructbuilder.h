@@ -37,8 +37,8 @@ class ProtocolStructBuilder
 
     QString makeFieldValidation(const QString &fieldType, const QString &fieldName);
 
-    void createHeaderFile(const QString &fileName);
-    void createSourceFile(const QString &fileName);
+    void createHeaderFile(const QString path, const QString &fileName);
+    void createSourceFile(const QString path, const QString &fileName);
 
     QByteArray createLoadFromHashFunction();
     QByteArray createToHashFunction();
@@ -46,9 +46,9 @@ class ProtocolStructBuilder
 public:
     ProtocolStructBuilder(const QString &ruleFilePath);
     static bool validate(const QString &ruleFile);
-    bool createStructs(const QString &outputFileName);
-    bool createPersister(const QString &ruleFile);
-    bool createTests(const QString &ruleFile);
+    void createStructs(const QString path, const QString &outputFileName);
+    bool createPersister(const QString path, const QString &ruleFile);
+    bool createTests(const QString path, const QString &ruleFile);
 };
 
 #endif // DECODERULESVALIDATOR_H

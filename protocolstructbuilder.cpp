@@ -323,7 +323,7 @@ QByteArray ProtocolStructBuilder::makeStructDeclaration(const QString &structNam
 
     tStream << "struct " << structName;
     tStream << QString(structParent.isEmpty() ? "" : QString(": public %1").arg(structParent));
-    tStream << " {\n\n";
+    tStream << "\n{\n";
     for (auto * sFieled : structFields){
         switch (sFieled->getObjectType()) {
         case _objectType::SIMPLE:{
@@ -409,9 +409,9 @@ QString ProtocolStructBuilder::makeStructFieldDeclaration(const QString &fieldTy
     return result;
 }
 
-void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
+void ProtocolStructBuilder::createHeaderFile(const QString path, const QString &fileName)
 {
-    QFile *fHeader = new QFile(fileName);
+    QFile *fHeader = new QFile(path + "/" + fileName);
     fHeader->open(QIODevice::WriteOnly);
 
     QByteArray mainData;
@@ -436,9 +436,9 @@ void ProtocolStructBuilder::createHeaderFile(const QString &fileName)
     delete fHeader;
 }
 
-void ProtocolStructBuilder::createSourceFile(const QString &fileName)
+void ProtocolStructBuilder::createSourceFile(const QString path, const QString &fileName)
 {
-    QFile *fSource = new QFile(fileName);
+    QFile *fSource = new QFile(path + "/" + fileName);
     fSource->open(QIODevice::WriteOnly);
 
     QTextStream sStream (fSource);
@@ -650,7 +650,7 @@ QByteArray ProtocolStructBuilder::createLoadFromHashFunction()
     sStream.setCodec(QTextCodec::codecForName("UTF-8"));
 
     for (auto &pStruct: _protocolData){
-        sStream << "void " << pStruct._structName << "::loadFromVariantHash(const QVariantHash &hash){\n\n";
+        sStream << "void " << pStruct._structName << "::loadFromVariantHash(const QVariantHash &hash)\n{\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
             case _objectType::SIMPLE:{
@@ -728,7 +728,7 @@ QByteArray ProtocolStructBuilder::createToHashFunction()
     sStream.setCodec(QTextCodec::codecForName("UTF-8"));
 
     for (auto &pStruct: _protocolData){
-        sStream << "QVariantHash " << pStruct._structName << "::toVariantHash() const{\n\n";
+        sStream << "QVariantHash " << pStruct._structName << "::toVariantHash() const\n{\n";
         sStream << insertTab(1) << "QVariantHash result;" << "\n";
         sStream << insertTab(1) << "QVariantHash valueHash;\n";
         sStream << "\n";
@@ -803,7 +803,7 @@ QByteArray ProtocolStructBuilder::createIsValidFunction()
     sStream.setCodec(QTextCodec::codecForName("UTF-8"));
 
     for (auto &pStruct: _protocolData){
-        sStream << "bool " << pStruct._structName << "::isValid() const{\n\n";
+        sStream << "bool " << pStruct._structName << "::isValid() const\n{\n";
         sStream << insertTab(1) << "bool result = true;\n";
         for (auto * sFieled : pStruct._structFields){
             switch (sFieled->getObjectType()) {
@@ -1292,23 +1292,28 @@ bool ProtocolStructBuilder::validate(const QString &ruleFile)
     return res;
 }
 
-bool ProtocolStructBuilder::createStructs(const QString &outputFileName)
+void ProtocolStructBuilder::createStructs(const QString path, const QString &outputFileName)
 {
-    createHeaderFile(outputFileName+".h");
-    createSourceFile(outputFileName+".cpp");
-    return true;
+    QDir d(path);
+    if ( !d.exists() )
+        d.mkpath( path );
+
+    createHeaderFile(d.absolutePath(), outputFileName+".h");
+    createSourceFile(d.absolutePath(), outputFileName+".cpp");
 }
 
-bool ProtocolStructBuilder::createPersister(const QString &ruleFile)
+bool ProtocolStructBuilder::createPersister(const QString path, const QString &ruleFile)
 {
     Q_UNUSED(ruleFile)
+    Q_UNUSED(path)
     bool res = false;
     return res;
 }
 
-bool ProtocolStructBuilder::createTests(const QString &ruleFile)
+bool ProtocolStructBuilder::createTests(const QString path, const QString &ruleFile)
 {
     Q_UNUSED(ruleFile)
+    Q_UNUSED(path)
     bool res = false;
     return res;
 }
