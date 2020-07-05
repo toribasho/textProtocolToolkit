@@ -7,3 +7,4 @@ qrc_*.cpp
 */.rcc/*
 bin/*
 Makefile
+.qmake.stash
