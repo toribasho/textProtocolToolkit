@@ -5,7 +5,7 @@
 <!-- ###################################### METAR ############################################ -->
 <!-- ######################################################################################### -->
 <!-- ######################################################################################### -->
-    <meteo type="2" name="METAR" struct="MetarMeteoStruct" parent="MetarMeteoPrototype">
+    <meteo type="2" name="METAR" struct="MetarMeteoStruct" parent="MeteoStruct">
         <state name="fLine" pattern="^ZCZC(\r\n|\r|\n)\d{2}\s\d{4}(\r\n|\r|\n)" field="METAR_F_LINE_TRASH" required="false" next="fLine2"/>
         <state name="fLine2" pattern="TYPE:(METAR|SPECI).+(\r\n|\r|\n)" field="METAR_F_LINE3_TRASH" required="false" next="fLine3"/>
         <state name="fLine3" pattern="ID:.+(\n|\r)" field="METAR_F_LINE4_TRASH" required="false" next="fLineEx"/>

@@ -5,7 +5,10 @@
 #include <QVariantHash>
 #include <QDateTime>
 
-struct MetarMeteoPrototype
+enum MeteoProtocol { METEO_METAR = 2, METEO_UNKNOWN = 99 };
+
+
+struct MeteoStruct
 {
   virtual void loadFromVariantHash(const QVariantHash &hash) = 0;
   virtual QVariantHash toVariantHash() const = 0;
